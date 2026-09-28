@@ -94,7 +94,7 @@ Define a provisional 19-candidate MVP catalog with explicit, graduated structura
     - **Evidence:** Independent read-only architecture review by `gentle-ai-explore`; parent synthesis accepted the recommendation with the qualification that tests determine the minimal fact set.
     - **PRD §9 (Initial IR proposal)** updated to: introduce the two-layer model (parser facts / validated semantic IR) explicitly; state the non-goals (no compiler-grade AST, complete CFG, or call graph; no second universal normalized AST); and note that line/column are derived from canonical byte/offset spans.
     - **PRD §10 (Language and parser strategy)** updated to add a new `#### Parser facts and semantic IR boundary` subsection between the tier table and the Tree-sitter conformance paragraph. The subsection includes: a definition of each layer; a three-column property table (`Property`, `Parser facts`, `Validated semantic IR`); an explicit non-goals block matching §9; a minimal-fact-set policy stating that Python/TypeScript vertical-slice tests determine the concrete fact shape; and a statement that diagnostics, byte-span provenance, and partial/unsupported states are first-class concerns at both boundaries.
-    - **Commit:** Pending for parent.
+    - **Work-unit commit:** `cee45d8 docs: define parser fact and analysis IR boundary`.
 
 ## Evidence
 - PRD update is the deliverable; no source implementation or tests are part of this documentation task.
