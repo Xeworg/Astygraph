@@ -236,6 +236,27 @@ Tree-sitter supplies syntax nodes and positions, not a complete compiler-grade c
 
 For every supported fixture, tests assert expected structural nodes/edges and their source spans, including that spans are within the original document and select the intended source. Malformed input must preserve file browsing and must not emit fabricated structure. Unsupported or ambiguous constructs must produce explicit diagnostics/partial results rather than guessed edges. Fixtures should be idiomatic, independently reviewed, deterministic, and include regression examples; agents may help author examples, but expected outputs and acceptance coverage require human review.
 
+#### Grammar evaluation gate
+
+During implementation, evaluate each candidate grammar before claiming language support. Include the language in the MVP only if a usable grammar and its declared tier gate are validated:
+
+1. **Rust-compatible integration:** The grammar can be built and integrated with the selected Rust Tree-sitter version and pinned reproducibly to a published release or exact source commit; packaging differences require verification, not automatic exclusion.
+
+2. **Maintenance signal:** Inspect repository status, releases/commits, issue response, and maintained alternatives. No arbitrary activity window proves maintenance; when no viable maintained grammar can be established, defer the language and record the evidence.
+
+3. **Security and license:** Check the chosen package's license and applicable security issues before distribution; unresolved integration or security blockers defer adoption.
+
+4. **Conformance fixtures:** Create Astynex-specific fixtures during implementation and pass the declared tier gate, including source mappings and partial/unsupported cases; upstream grammar corpus alone is insufficient.
+
+**Distinguishing candidates from implementable languages:**
+- Task 8 (catalog audit) identifies candidate grammars and their maintenance signals with dated evidence.
+- Language-specific implementation gates—including grammar version pinning, conformance fixture authoring, and tier gate passage—happen during development implementation, not during the candidate audit phase.
+- A candidate language that passes the audit phase may still fail its implementation gate; the 19-candidate catalog does not imply 19 guaranteed release slots.
+
+**Temporarily stale signals:** A single outdated release, a missing website, or a 404 on one URL does not constitute no maintained alternative when other evidence (releases, commits, forks, issue activity) supports continued maintenance. Evaluate holistically before deferring.
+
+**Read-only browsing:** A deferred language is not advertised as supported for analysis. Users may still open and read its source as ordinary text; syntax highlighting is offered only when an independently validated path exists.
+
 Tier gates:
 - **Tier 1 — core structural:** Grammar loads reproducibly; detection, parsing, declared function boundaries, sequence, conditionals, loops, calls, and early exits pass applicable fixtures with exact source mapping. Malformed and unsupported cases degrade safely and visibly.
 - **Tier 2 — extended structural:** Passes every Tier 1 gate plus the language-specific constructs declared for the language (for example, async/await, exceptions, pattern matching, or language-specific declaration forms). No construct is implied supported unless it has fixtures and verified source mapping.

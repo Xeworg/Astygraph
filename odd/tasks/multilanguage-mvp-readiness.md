@@ -74,6 +74,14 @@ Define a provisional 19-candidate MVP catalog with explicit, graduated structura
     - **Catalog impact:** 20 → 19 provisional languages. Catalog remains provisional; final MVP count may be below 19 after remaining grammar/demand audit.
     - **Documentation updated:** PRD.md (catalog table, acceptance criteria, roadmap, executive summary, open decisions, document note); ODD Goal and Decisions coherently reflect the provisional 19-candidate catalog.
     - **Work-unit commit:** `6155b0e docs: defer Swift from provisional MVP catalog`; documentation verification: `git diff --check` and delegated readback passed. Task 8 remains pending.
+12. [x] Define evidence-based grammar evaluation gate for language implementation decisions.
+    - **Decision:** During implementation, require reproducibly pinned Rust-compatible grammar integration, evidence of a viable maintained source or alternative, license/security checks, and Astynex-specific fixtures passing the declared tier gate. If no viable maintained grammar can be established, do not implement or advertise the language as MVP-supported yet; reassess later. No arbitrary activity deadline defines maintenance.
+    - **Catalog impact:** 19-candidate catalog preserved; Task 8 remains pending for grammar/demand audit. Implementation-stage acceptance is distinct from candidate audit; final validated release count may be below 19.
+    - **Distinctions:** Catalog audit (Task 8) identifies candidates with dated evidence. Language-specific implementation gates (grammar pinning, fixture authoring, tier passage) happen during development. Do not claim fixture work done before it is; do not assert 19 guaranteed release slots.
+    - **Stale-signal guidance:** Temporarily outdated releases or a 404 on one URL does not mean no maintained alternative; evaluate holistically before deferring.
+    - **Browsing unaffected:** Deferred languages are not advertised as analysis-supported; users can still open/read their source as text. Highlighting requires its own validated path.
+    - **Documentation updated:** PRD.md Section 10 with grammar gate criteria, explicit candidate/implementation distinction, stale-signal guidance, and read-only browsing policy.
+    - **Validation:** `git diff --check` passed; no unrelated edits, no renumbering of existing tasks, Swift deferral preserved.
 
 ## Evidence
 - PRD update is the deliverable; no source implementation or tests are part of this documentation task.
