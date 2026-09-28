@@ -107,7 +107,8 @@ Define a provisional 19-candidate MVP catalog with explicit, graduated structura
       - `src/lib.rs` — library root with `APPLICATION_NAME` constant.
       - `tests/app_identity.rs` — smoke integration test asserting `APPLICATION_NAME == "Astynex"`.
       - `Cargo.lock` — auto-generated lockfile.
-    - **Preserved:** pre-existing uncommitted edits to `PRD.md` and `odd/tasks/multilanguage-mvp-readiness.md` (this task); untracked `.codegraph/` directory untouched.
+    - **Work-unit commit:** `b611175 chore: bootstrap minimal Rust workspace` (includes the accumulated Task 8/9 PRD and task-record closeout edits, as explicitly authorized by the user).
+    - **Preserved:** untracked `.codegraph/` directory untouched; Cargo `target/` ignored by `.gitignore`.
 11. [x] Scope change: remove Swift from MVP catalog pending grammar validation.
     - **Decision:** Swift is deferred from the 19-language catalog rather than replaced. The old tree-sitter/tree-sitter-swift README states 'Status - Abandoned' and links to alex-pinkus/experimental-tree-sitter-swift as an alternative. A replacement grammar exists (alex-pinkus/tree-sitter-swift) but its Tier 2 Astynex conformance has not been validated.
     - **Rationale:** User explicitly chose to temporarily remove languages with abandoned grammars from MVP rather than replace to maintain count, prioritizing high-demand languages. Do not claim Swift has no maintained grammar—defer it provisionally.
