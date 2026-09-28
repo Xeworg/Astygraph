@@ -6,3 +6,10 @@ description = "Astynex: multi-language structural analysis explorer"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "glow", "wayland"] }
+rfd = "0.17.2"
+
+[features]
+default = []
