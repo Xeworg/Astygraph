@@ -21,6 +21,7 @@ Deliver the first usable native desktop slice, prioritizing essential project/so
    - RED: the new app-shell tests failed to compile because `astynex::app_state` did not exist.
    - GREEN: `cargo test --workspace --all-targets` passed with 7 tests (1 identity + 6 app-shell); `cargo fmt --all -- --check` and `git diff --check` passed.
    - Review: independent verifier confirmed cancellation/state transitions; removed unused direct `winit` and speculative `tracing-subscriber` dependencies before closeout. Manual GUI launch was not exercised.
+   - Work-unit commit: `dc8a5b6 feat: add native desktop shell and folder picker`.
 2. [ ] Add safe project-file navigation and a code viewer.
    - Acceptance: browse nested project files and display selected text with line numbers; show visible diagnostic for files over the provisional 1 MiB ceiling; surface invalid UTF-8 and I/O failures without panics; tests cover boundaries and errors. Apply the PRD's default exclusions, symlink policy, and bounded/incomplete discovery behavior.
 3. [ ] Add Spanish/English localization and Heroicons outline assets.
