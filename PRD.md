@@ -246,11 +246,31 @@ All tiers must pass shared safety and integrity gates: no crash on malformed/uns
 - AI analyzes the opened file or selected symbol and returns structured semantic/logic analysis for Astynex to validate and render. Semantic fluency does not guarantee correct source mapping or control-flow claims, so maintain language-specific conformance/evaluation fixtures.
 - Astynex software—not an image-generation model—constructs and renders the native interactive graph from validated structured AI output and parser-backed source facts.
 - Start with a versioned structured response schema and strict validation. Bound output size; reject unknown files, node/edge references, and invalid/out-of-source ranges rather than trusting model-provided coordinates. Unsupported/uncertain claims must remain labeled or be omitted.
-- Provider integration should isolate protocol details (for example, OpenAI-compatible HTTP versus a distinct messages protocol) from model metadata and UI. The system should make a new provider or compatible endpoint straightforward to add without modifying parser, IR, or visualization code.
-- Use OpenCode and other relevant open-source projects as architecture study references for provider breadth and integration patterns. Rust implementation should be designed for Astynex's requirements; any direct reuse of third-party source is a separate, explicit engineering and license-review decision, not implied by architectural study.
-- AI analysis is required for analysis/explanation/graph features. Ollama is the supported offline option and must be installed/configured and available; remote providers require explicit code-context disclosure and user action. Never claim code stays local when a remote endpoint is configured.
-- Credentials belong in OS-backed secure storage where available. Configuration files may store non-secret provider settings and secret references, never raw secrets by default.
-- Persistence policy must specify what is cached (parse facts, AI analysis, graph-ready IR), per-folder database location, content fingerprint/invalidation, schema migration, retention/deletion, and whether prompts/responses contain source. The selected engine direction is SQLite through Rust `rusqlite` with `bundled`; resolve the remaining policy details before implementation.
+
+### Provider families and structured-output support
+
+Astynex distinguishes **vendor integrations** (first-party API access) from **protocol families** (OpenAI-compatible and Anthropic-compatible endpoints). The following families are in scope for the MVP, subject to structured-output feature availability at each provider:
+
+| Family | Type | Structured-output support | Documentation |
+|--------|------|---------------------------|---------------|
+| OpenAI | Vendor integration | JSON Schema structured output is documented for supported models and API modes. | [OpenAI structured outputs](https://platform.openai.com/docs/guides/structured-outputs) |
+| OpenAI-compatible endpoints | Protocol family | Varies by provider. Support depends on whether the endpoint correctly implements the OpenAI chat completions API with `response_format`. Astynex validates the response schema locally; unsupported compatibility features are reported honestly. | Same endpoint docs |
+| Anthropic | Vendor integration | JSON output through `output_config.format` on supported models. | [Anthropic structured outputs](https://docs.anthropic.com/en/docs/build-with-claude/structured-outputs) |
+| Anthropic-compatible endpoints | Protocol family | Varies by provider. Support depends on whether the endpoint correctly implements the Anthropic messages API. Astynex validates the response schema locally; unsupported compatibility features are reported honestly. | Same endpoint docs |
+| Google Gemini | Vendor integration | JSON Schema structured output with provider-specific supported subset and API parameters. | [Gemini structured outputs](https://ai.google.dev/gemini-api/docs/structured-output) |
+| Ollama (local) | Local provider | Structured-output support confirmed via Ollama's compatible API when the underlying model supports it; capability depends on the installed model and Ollama version. Fallback engineering validation is required rather than assumption: model capability flags and local schema validation confirm whether structured output is available before use. | [docs.ollama.com/capabilities/structured-outputs](https://docs.ollama.com/capabilities/structured-outputs) |
+
+**Explicit scope constraints:**
+
+- **No unlimited provider catalog.** The MVP ships with the families above. Additional providers are post-MVP, added when validated demand and integration quality justify them.
+- **Compatible-endpoint trust and privacy disclosure.** Configurable OpenAI-compatible or Anthropic-compatible endpoints require explicit user action to add, clear disclosure that code will be transmitted to that endpoint, and acknowledgment that the endpoint is not a first-party vendor. Astynex does not validate or endorse third-party endpoint policies.
+- **Credential security.** API keys and secrets are stored via OS-backed credential stores where available, with documented fallback behavior. Configuration files store non-secret settings and secret references only; raw secrets are never written to configuration.
+- **Model capability flags.** Astynex records known structured-output support per configured model, permits probing where reliable, and reports unverified or unavailable capabilities honestly; a remote catalog is not assumed authoritative.
+- **Strict local schema and source validation.** Even when a provider supports structured output, Astynex validates every response against its versioned schema, verifies node/edge references and source ranges, and rejects or flags invalid, unsupported, or unmappable content.
+- **No model parity claims.** The presence of structured-output documentation does not imply feature parity across all models or providers. Each integration is validated independently.
+- **No prescribed model catalog.** The MVP does not mandate a fixed model list; users select a configured model, with capability limits reported per selection.
+- **Architecture reference only.** Study OpenCode's provider/protocol/model separation without adding it as a dependency or copying code. Any direct reuse requires separate provenance and license review; design Astynex's Rust integration independently.
+- **Persistence unchanged.** Specify cached parse facts and validated IR, per-folder database location, content fingerprint/invalidation, schema migration, retention/deletion, and whether prompts/responses contain source before implementation. SQLite via bundled `rusqlite` is the selected engine.
 
 ## 12. Privacy and security
 

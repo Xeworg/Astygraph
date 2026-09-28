@@ -41,7 +41,28 @@ Define the MVP as a 20-language release with explicit, graduated structural-anal
    - **Payload/retention nuances:** source content is read from disk on demand, not stored; prompts and raw provider responses are not persisted; clear-cache does not touch provider configuration or credentials.
    - Follows from: Task 5 engine decision (`928f476`).
    - Work-unit commit: `0b069fd docs: define file-oriented cache policy`. Documentation-only validation: `git diff --check`; delegated readback confirmed scope and preserved OpenCode reference.
-7. [ ] Study OpenCode provider architecture and define initial AI-provider scope without adding OpenCode as dependency or copying code.
+7. [x] Study OpenCode provider architecture and define initial AI-provider scope without adding OpenCode as dependency or copying code.
+   - **Decision: MVP starts with five requested integration families plus the previously required local Ollama option.**
+     - Vendor integrations: OpenAI, Anthropic, Google Gemini.
+     - Protocol families: OpenAI-compatible endpoints, Anthropic-compatible endpoints.
+     - Local provider: Ollama via compatible API (fallback engineering validation required; capability depends on installed model and Ollama version).
+   - **Explicit constraints.**
+     - No unlimited provider catalog; additional providers post-MVP.
+     - Configurable compatible endpoints require trust/privacy disclosure and explicit user action.
+     - Credential security via OS-backed stores with documented fallback.
+     - Model capability flags: record known structured-output capability per model and probe only where reliable; unknown or unavailable support reported honestly.
+     - Strict local schema validation for all responses regardless of provider.
+     - No model parity claims; each integration validated independently.
+     - No fixed model catalog prescribed in MVP.
+     - OpenCode preserved as study-only reference (not dependency or code copy).
+   - **Official structured-output documentation consulted in September 2026 (capability remains model/API-version-specific).**
+     - OpenAI: JSON Schema structured output — [OpenAI guide](https://platform.openai.com/docs/guides/structured-outputs).
+     - Anthropic: JSON output via `output_config.format` — [Anthropic guide](https://docs.anthropic.com/en/docs/build-with-claude/structured-outputs).
+     - Google Gemini: JSON Schema structured output with supported subset — [Gemini guide](https://ai.google.dev/gemini-api/docs/structured-output).
+     - Ollama: structured output including OpenAI-compatible API; test against installed model/version — [Ollama guide](https://docs.ollama.com/capabilities/structured-outputs).
+     - OpenAI-compatible and Anthropic-compatible endpoints: support varies by provider; Astynex validates locally and reports unsupported features honestly.
+   - PRD updated with provider family table and explicit scope constraints.
+   - Validation: `git diff --check` passed; task 7 complete.
 8. [ ] Validate the 20-language catalog, grammar availability, and tier assignments with dated evidence.
 9. [ ] Define large-project scan limits, exclusions, cancellation, and scale-test envelope.
 10. [ ] Establish workspace and strict TDD runner/configuration.
