@@ -72,7 +72,8 @@ Define a provisional 19-candidate MVP catalog with explicit, graduated structura
     - **Rationale:** User explicitly chose to temporarily remove languages with abandoned grammars from MVP rather than replace to maintain count, prioritizing high-demand languages. Do not claim Swift has no maintained grammar—defer it provisionally.
     - **Evidence:** Official tree-sitter/tree-sitter-swift README (https://github.com/tree-sitter/tree-sitter-swift): "Status - Abandoned"; redirect/reference to alex-pinkus/experimental-tree-sitter-swift as the active fork.
     - **Catalog impact:** 20 → 19 provisional languages. Catalog remains provisional; final MVP count may be below 19 after remaining grammar/demand audit.
-    - **Documentation updated:** PRD.md (catalog table, acceptance criteria, roadmap, executive summary, open decisions, document note); ODD Goal and Decisions coherently reflect 19-language provisional catalog.
+    - **Documentation updated:** PRD.md (catalog table, acceptance criteria, roadmap, executive summary, open decisions, document note); ODD Goal and Decisions coherently reflect the provisional 19-candidate catalog.
+    - **Work-unit commit:** `6155b0e docs: defer Swift from provisional MVP catalog`; documentation verification: `git diff --check` and delegated readback passed. Task 8 remains pending.
 
 ## Evidence
 - PRD update is the deliverable; no source implementation or tests are part of this documentation task.
