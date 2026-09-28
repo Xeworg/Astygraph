@@ -8,11 +8,29 @@ Define the MVP as a 20-language release with explicit, graduated structural-anal
 - Python and TypeScript are the initial vertical-slice languages.
 - Every tier must preserve source mapping, avoid fabricated structure, and communicate unsupported/partial analysis.
 - Each language requires versioned grammar metadata and language-specific fixtures against common conformance expectations.
+- Linux and Windows are the initial target platforms; development is initially private to the project team, without narrowing the intended user groups.
+- MVP graph scope is the opened file and selected applicable symbol (function, class, interface, or language equivalent), plus its directly related files/symbols for context; a whole-project graph is post-MVP.
+- The AI provider is required for AI analysis, explanations, and graph features; with no provider configured/available, users may still open/read source but those AI features are unavailable.
+- AI analyzes the opened source; Astynex software creates/renders the interactive graph. Do not generate graph images.
+- AI must never modify source files. Its structured output and source references must be validated before rendering.
+- Ollama is the offline AI option; offline AI requires Ollama to be installed/configured and available.
+- Use strict RED-GREEN-REFACTOR TDD.
+- Persistence is a local database per project folder, incrementally populated as files are analyzed; database technology remains open for research.
+- Scale strategy is on-demand analysis of opened/related files, not a full-project eager scan; exact limits remain for measurement.
+- The provided UI image is directional; its project-wide graph is not MVP scope.
 
 ## Tasks
 1. [x] Reconcile MVP scope, exclusions, roadmap, and language strategy in PRD.
 2. [x] Specify common conformance suite, tier gates, and 20-language candidate catalog (19 initial candidates plus R as candidate 20).
 3. [x] Align acceptance criteria and open decisions with the language MVP.
+4. [x] Update PRD with the newly confirmed platform, AI, graph, persistence, and TDD product constraints.
+   - Evidence: PRD reflects Linux/Windows; private development without narrowing intended user groups; on-demand analysis of opened file/symbol plus direct context; local dependency graph rather than whole-project graph; AI structured analysis validated and rendered natively; no image generation or AI file modification; source browsing without a provider while analysis/graph require one; Ollama offline option; per-folder incremental persistence pending technology research; strict RED-GREEN-REFACTOR with runner setup pending.
+   - Validation: `git diff --check` passed; targeted contradiction scan/readback confirmed the intended provider-unavailable, graph-scope, source-write, and TDD constraints. Independent subagent verification unavailable because worktree registration failed.
+5. [ ] Research and decide scalable per-folder incremental persistence.
+6. [ ] Study OpenCode provider architecture and define initial AI-provider scope without adding OpenCode as dependency or copying code.
+7. [ ] Validate the 20-language catalog, grammar availability, and tier assignments with dated evidence.
+8. [ ] Define large-project scan limits, exclusions, cancellation, and scale-test envelope.
+9. [ ] Establish workspace and strict TDD runner/configuration.
 
 ## Evidence
 - PRD update is the deliverable; no source implementation or tests are part of this documentation task.

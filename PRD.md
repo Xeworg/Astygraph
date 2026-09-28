@@ -6,9 +6,9 @@
 
 ## 1. Executive summary
 
-Astynex is a local-first desktop application that helps developers understand unfamiliar source code by connecting three views of the same selected code: a concise explanation (**Idea**), a navigable representation of its behavior (**Algorithm**), and the original source (**Code**). A project/file graph provides context about surrounding files and relationships.
+Astynex is a local-first desktop application, initially developed privately by the project team, that helps developers understand unfamiliar source code by connecting three views of the opened file or selected symbol: a concise AI-generated explanation (**Idea**), an interactive software-rendered representation of its behavior (**Algorithm**), and the original source (**Code**). A local dependency graph may show directly related files and symbols needed to understand the current selection; a whole-project graph is outside the MVP.
 
-Its central hypothesis is that a developer can understand a real function faster and with better source traceability using a linked visual explanation than by reading the function alone. Astynex should combine deterministic structural analysis with optional AI-generated semantic interpretation. AI may explain or annotate validated structure; it must not silently invent source locations or become the sole authority for control flow.
+Its central hypothesis is that a developer can understand real code faster and with better source traceability using a linked visual explanation than by reading source alone. A configured AI provider analyzes the opened file or selected symbol and returns structured analysis; Astynex validates that result and renders it as native graph elements, not generated images. AI must never modify source files. Schema and source references are validated; unsupported or unmappable claims are rejected or shown as uncertain rather than silently trusted.
 
 The MVP should prove this comprehension loop across a selected catalog of 20 widely used programming languages, with availability in all three validated tiers at MVP release. Coverage depth will differ by language and tier; equal completeness is not promised. Validate the end-to-end comprehension experience first with Python and TypeScript, then extend the shared conformance gates and tiered coverage across the catalog.
 
@@ -26,11 +26,11 @@ Astynex proposes a visual comprehension layer, not an IDE replacement. Its value
 
 Guiding principles:
 
-1. **Traceability first:** Every structural node and explanation should be connected to the source range it describes, or clearly marked as inferred/unmapped.
-2. **Deterministic structure, optional semantics:** Parsing establishes syntax and source locations; AI enriches meaning and summaries.
-3. **Local-first and explicit sharing:** Project browsing and parsing are local. Sending code to a remote model requires clear user choice and disclosure.
-4. **Progressive complexity:** Start with a selected function. Do not require full-repository indexing to deliver the core value.
-5. **Graceful degradation:** Core browsing and structural views work without a configured model or network access.
+1. **Traceability first:** Every graph node and explanation claim should map to source ranges or be explicitly marked uncertain/unmapped.
+2. **AI analysis, software visualization:** The AI analyzes source and returns structured data; deterministic application code validates and renders the interactive graph. Do not generate graph images.
+3. **Local-first and explicit sharing:** Project browsing and source reading are local. Sending code to a remote model requires clear user choice and disclosure; Ollama is the offline AI option.
+4. **Progressive complexity:** Analyze on demand, beginning with the opened file or selected applicable symbol and only directly related files/symbols needed for context; do not eagerly analyze the whole project.
+5. **Graceful degradation:** Users can open and read source without an AI provider. Analysis, explanations, and graph features require a configured and available provider.
 6. **Honest uncertainty:** Unsupported syntax, parse errors, incomplete context, and AI uncertainty are visible rather than presented as certainty.
 7. **User-controlled exploration:** Graph selection, search, navigation, and detail panels should help answer questions without autonomous edits or opaque actions.
 
@@ -38,15 +38,17 @@ Guiding principles:
 
 ### Primary users
 - Developers onboarding to an unfamiliar repository.
-- Developers investigating legacy or complex functions.
-- Learners who benefit from a visual account of control flow.
+- Developers investigating legacy or complex code.
+- Learners who benefit from a visual account of code structure and logic.
 
 ### Secondary users (later validation)
 - Code reviewers exploring behavior and failure paths.
 - Maintainers preparing documentation or explaining an implementation.
 
+The product is initially developed privately by the project team; this development arrangement does not narrow the intended user groups.
+
 ### Jobs to be done
-- “When I open an unfamiliar function, help me understand its purpose and branches without losing the ability to verify each claim in source.”
+- “When I open an unfamiliar file or select a function, class, interface, or language-equivalent symbol, help me understand its purpose and logic without losing the ability to verify each claim in source.”
 - “When I see a node or branch in the visual view, take me to the relevant code.”
 - “When analysis is incomplete or AI is unavailable, show what can still be understood and why the rest is missing.”
 
@@ -58,20 +60,20 @@ Guiding principles:
 2. Browse a filtered file tree and open a supported source file.
 3. Show readable, syntax-highlighted source with line numbers.
 4. Detect supported functions and basic control-flow constructs using a parser.
-5. Select a function and view its deterministic structural representation, linked to source ranges.
-6. Optionally request an AI explanation for the selected function, with a clear local/remote data disclosure and a usable no-AI state.
-7. Validate AI output against a defined schema and known source ranges; reject or visibly flag invalid/unmapped content.
-8. Select a graph node to highlight/navigate to its source range, and select a supported source range to locate the corresponding node when mapping exists.
-9. Report parser/model errors without losing the project or source view.
+5. Select a function, class, interface, or applicable language-specific symbol and request AI analysis; the configured provider analyzes the opened source plus explicitly scoped directly related context.
+6. Validate AI output against a versioned schema and source ranges before Astynex constructs and displays an interactive graph. Reject or visibly flag invalid, unsupported, uncertain, or unmappable content; never generate graph images.
+7. Link graph nodes to source and let users navigate from a node to its source range and, where mapping is unambiguous, from source to the corresponding graph node.
+8. Allow source browsing and reading without a configured provider, but make analysis, explanation, and graph-generation unavailable with a clear setup/recovery state.
+9. Report parser, provider, validation, and rendering errors without losing the project or source view. AI has no operation capable of modifying project files.
 
 ### Explicitly out of MVP scope
 - Autonomous agents, code modification, debugging, autocomplete, or a full IDE.
 - RAG, vector databases, cloud project storage, collaboration, or account systems.
-- Complete repository semantic indexing or a global knowledge graph.
+- Eager analysis of every project file, a whole-project graph, or complete repository semantic indexing.
 - Claims of complete call/data-flow analysis across dynamic dispatch, reflection, macros, or unresolved dependencies.
 - Equal-depth or compiler-grade analysis across all 20 languages. The MVP includes every selected language with explicitly tiered coverage, documented limitations, and language-specific acceptance gates.
 - A large built-in provider catalog or parity with every model vendor in the MVP; the architecture should permit broad provider additions over time.
-- Cross-language, cross-file algorithm graphs before the single-function experience is validated.
+- Whole-project/cross-project graphs and unrestricted cross-file algorithm graphs; MVP context is limited to directly related files/symbols for the opened file or selection.
 
 ## 6. User experience and interface direction
 
@@ -81,18 +83,18 @@ The supplied mockup is a directional reference, not a binding layout specificati
 - **Source editor/viewer** adjacent to the explorer.
 - **Algorithm canvas** linked to selected source.
 - **Explanation/details panel** with summary, steps, inputs/outputs, and complexity where supportable.
-- **Project graph** as a separate lower or switchable view for files/functions and relationships.
-- **Global search** for files, symbols, and (later) concepts.
+- **Local dependency graph** for directly related files/symbols in the context of the opened file or selected symbol; the mockup's whole-project graph is a later direction, not MVP scope.
+- **Project navigation/search** for file paths and supported symbols without eagerly analyzing the full project.
 
 The mockup communicates the product’s differentiator well: source, flow, explanation, and project context are visible together. For the MVP, avoid forcing all panels to remain open at once. Prioritize a resizable layout, clear active selection, keyboard-accessible navigation, and a way to focus/maximize the source or graph. Distinguish facts parsed from source from AI-authored descriptions through labels or provenance cues.
 
 ### Core interaction requirements
-- Selecting a function becomes the shared context for Code, Algorithm, and Idea views.
+- Selecting an applicable symbol (function, class, interface, or language equivalent) becomes the shared context for Code, Algorithm, and Idea views.
 - Selecting a graph node navigates to and highlights its source range; if no reliable range exists, explain that limitation.
 - Selecting source within a supported function can identify its corresponding structural node where mapping is unambiguous.
 - Graph pan/zoom and node selection must not interfere with ordinary text selection or source navigation.
-- Empty, loading, parse-error, unsupported-language, and AI-unavailable states have explicit UI treatment.
-- Users can inspect which content would be sent before invoking a remote AI analysis.
+- Empty, loading, parse-error, unsupported-language, invalid-analysis, and provider-unavailable states have explicit UI treatment. Provider unavailability blocks analysis/Idea/graph features but never blocks opening and reading source.
+- Before remote analysis, users can inspect the source and directly related context that will be sent; Ollama is the supported offline path.
 
 ## 7. Functional requirements
 
@@ -103,24 +105,25 @@ The mockup communicates the product’s differentiator well: source, flow, expla
 - **FR-4:** Search finds file paths and parsed symbols within the project’s supported scope.
 
 ### Structural analysis and graph
-- **FR-5:** Parser detects supported function boundaries and source spans.
-- **FR-6:** For supported syntax, analyzer represents entry/exit, sequential operations, conditionals, loops, calls, and returns/errors when deterministically identifiable.
-- **FR-7:** Each structural element retains file identity and source range; edges identify their relation and branch label where applicable.
-- **FR-8:** Unsupported constructs or parser errors do not produce fabricated structure; available partial results are identified as partial.
-- **FR-9:** Graph supports selection, pan, zoom, and source navigation. Layout is readable for representative functions; very large functions have a defined simplification or warning behavior.
+- **FR-5:** Language adapters parse supported files and provide syntax facts, symbol boundaries, and source spans used to validate AI analysis; the parser does not claim unsupported semantic certainty.
+- **FR-6:** On explicit user action, AI analyzes the opened file or selected applicable symbol and returns structured graph/explanation data for the declared language coverage.
+- **FR-7:** Astynex validates the AI response schema, node/edge references, source ranges, and file identity before creating/rendering graph elements. Invalid or unverifiable output is rejected or clearly flagged.
+- **FR-8:** Graph nodes and edges retain file identity and verifiable source ranges where applicable, and distinguish parser facts from AI-derived interpretations and uncertainty.
+- **FR-9:** Graph supports selection, pan, zoom, and source navigation. MVP scope is the opened file/selected symbol and directly related files/symbols for context, not a whole-project graph.
+- **FR-10:** The graph is rendered natively by Astynex from validated structured data; the application does not request or generate graph images.
+- **FR-11:** AI integration has no source-editing capability; analysis cannot write, patch, or otherwise modify project files.
 
-### Semantic explanation
-- **FR-10:** AI analysis is optional and only runs on explicit user action in the MVP.
-- **FR-11:** Request context is bounded to the selected function and intentionally selected/relevant supporting context; the UI identifies that context.
-- **FR-12:** Structured responses use a versioned schema and are validated before display. AI output cannot override parser-derived source ranges or silently create executable graph structure.
-- **FR-13:** Explanation distinguishes summary, steps, inputs/outputs when known, and uncertainty. Unsupported complexity estimates are omitted or qualified.
-- **FR-14:** If no model is configured, the user can still browse source and structural analysis and receives a clear explanation of unavailable semantic features.
+### AI analysis and explanation
+- **FR-12:** AI analysis is a required MVP capability available through a configured, working provider; Ollama provides the offline path when installed and configured.
+- **FR-13:** Request context is bounded to the opened file/selected symbol and directly related context needed for understanding; the UI identifies the exact context.
+- **FR-14:** Explanation distinguishes summary, logic steps, inputs/outputs where known, and uncertainty. Unsupported complexity claims are omitted or qualified.
+- **FR-15:** Without a configured/available provider, users can open and read source, but cannot invoke AI analysis, receive AI explanations, or generate analysis graphs; show a clear configuration/recovery state.
 
 ### Privacy, preferences, and errors
-- **FR-15:** Before remote analysis, disclose provider/model and the code/context being transmitted; obtain explicit user action. Provide a local-provider path where feasible.
-- **FR-16:** API secrets are not written as plaintext in ordinary application settings. Use an OS credential store where supported, with documented fallback behavior.
-- **FR-17:** Users can configure/remove providers and choose a model. Provider, protocol, and model concepts remain separate in the design, without requiring every integration in the MVP.
-- **FR-18:** Errors identify the failing stage (file read, parse, schema validation, provider, network) and preserve unaffected views.
+- **FR-16:** Before remote analysis, disclose provider/model and the code/context being transmitted; obtain explicit user action. Ollama is the offline local-provider path.
+- **FR-17:** API secrets are not written as plaintext in ordinary application settings. Use an OS credential store where supported, with documented fallback behavior.
+- **FR-18:** Users can configure/remove providers and choose a model. Provider, protocol, and model concepts remain separate; MVP provider choices are determined by a separate research task.
+- **FR-19:** Errors identify the failing stage (file read, parse, schema validation, provider, network, persistence) and preserve source browsing and other unaffected views.
 
 ## 8. Non-functional requirements
 
@@ -128,33 +131,35 @@ The mockup communicates the product’s differentiator well: source, flow, expla
 - **NFR-2 Responsiveness:** Project opening, file browsing, parsing, and graph interaction should remain responsive on a documented reference project. Long work must show progress and be cancellable where practical.
 - **NFR-3 Reliability:** Invalid model output and malformed/unsupported source must not crash the application or corrupt project state.
 - **NFR-4 Accessibility:** Core navigation is keyboard-operable; selection and status are not communicated by color alone; text and graph contrast remain usable.
-- **NFR-5 Portability:** Target operating systems and supported release platforms are explicitly declared before MVP release; credential-store differences are handled/documented.
+- **NFR-5 Portability:** Linux and Windows are the initial target platforms; credential-store and packaging differences are handled/documented.
 - **NFR-6 Maintainability:** Parsing, IR, provider/protocol integration, and UI are separable boundaries with testable interfaces.
 - **NFR-7 Resource use:** Memory and CPU behavior are measured against a stated project/file-size envelope, not described as “fast” without evidence.
 - **NFR-8 Observability:** Application logs are structured, level-based, useful for diagnosing failures, and redacted so source code, secrets, prompts, and sensitive paths are not recorded by default.
-- **NFR-9 Error containment:** Failures in parsing, AI requests, graph rendering, or optional services must not crash unrelated project browsing or destroy the user's current view.
-- **NFR-10 Testability:** Core analysis and provider behavior must be testable without launching the GUI, accessing the network, or requiring real credentials.
+- **NFR-9 Error containment:** Failures in parsing, AI requests, graph rendering, persistence, or other services must not crash the application or destroy the user's current source view. Provider failure disables analysis features but not source browsing.
+- **NFR-10 Testability:** Core analysis, validation, persistence, and provider behavior must be testable without launching the GUI, accessing external networks, or requiring real credentials; provider contracts use deterministic local mocks.
 
 ## 9. Proposed architecture (initial, subject to technical validation)
 
 Prefer a small set of stable boundaries over premature framework breadth:
 
 - **Desktop UI:** Rust with eframe and egui as the native application framework and immediate-mode UI. Use egui_graphs (https://github.com/blitzarx1/egui_graphs) for graph rendering and interaction, subject to confirming its egui version compatibility and validating source selection/navigation integration.
-- **Project/source service:** Local file access, ignore rules, file filtering, and project identity.
-- **Language adapters:** Tree-sitter grammar/parser integration and language-specific structural extraction.
-- **Analysis core:** Deterministic structural model, context selection, provenance, and diagnostics.
-- **Astynex IR:** UI-independent, versioned representation of nodes, edges, source spans, and semantic annotations.
-- **AI boundary:** Provider registry, protocol adapters, model capabilities, credential references, request policy, structured-output validation.
-- **Visualization adapters:** Render IR without making UI widgets the canonical analysis model.
+- **Project/source service:** Local file access, ignore rules, on-demand file/symbol navigation, direct-related-context resolution, and project identity.
+- **Language adapters:** Tree-sitter grammar/parser integration, syntax facts, symbol/source-span extraction, and language-specific validation support.
+- **Analysis core:** AI request/context orchestration, structured-result validation, provenance, cancellation, and diagnostics.
+- **Astynex IR:** UI-independent, versioned representation of AI analysis, validated nodes/edges, source spans, uncertainty, and annotations.
+- **AI boundary:** Required provider registry, protocol adapters, model capabilities, credential references, request policy, structured-output validation, and Ollama support for offline use.
+- **Persistence:** One local database associated with each project folder, incrementally updated as files are analyzed; database technology and invalidation/migration strategy are selected after research.
+- **Visualization adapters:** Render only validated IR as native interactive graph elements; never treat generated images or UI widgets as canonical analysis data.
 - **Diagnostics and observability:** Typed errors at subsystem boundaries, user-actionable diagnostics, and structured logs through a centralized logging setup.
 
 ### Architecture principles
 
-- Keep the domain/IR independent of egui, Tree-sitter implementation details, storage, and provider SDKs.
+- Keep the domain/IR independent of egui, Tree-sitter implementation details, persistence technology, and provider SDKs.
 - Use explicit boundaries (ports/adapters) for filesystem access, language parsing, AI providers, secure credentials, and persistence; avoid global mutable state and cross-layer shortcuts.
 - Prefer cohesive modules and a small number of crates initially. Split into workspace crates when ownership, dependency direction, or independent testing justifies it—not simply to increase crate count.
 - Treat all external input (repository files, LSP/provider responses, AI output, configuration) as untrusted and validate it at the boundary.
-- Make cancellation, resource limits, partial results, and provenance part of analysis contracts rather than UI-only behavior.
+- Make cancellation, resource limits, partial results, source provenance, provider unavailability, and persistence status part of analysis contracts rather than UI-only behavior.
+- Never grant the AI integration file-write tools or source-editing APIs; treat repository content and model output as untrusted input.
 - Keep UI state separate from canonical analysis data; version persisted or exchanged schemas.
 - Depend on abstractions only where they isolate real variation (language adapters, AI protocols/providers, storage). Avoid speculative plugin systems and generic frameworks before a second implementation proves the need.
 
@@ -198,7 +203,7 @@ Annotation
 - provenance and optional confidence
 ```
 
-Keep parser facts and AI annotations distinguishable. Prefer byte/parser offsets as canonical locations and derive line/column for display, because line-only spans are ambiguous and can drift. The IR should not claim semantic edges that the structural analyzer cannot establish. Stable cross-edit identities and persistence/migration can be deferred until caching requirements are validated.
+Keep parser-derived facts and AI-generated semantic interpretations distinguishable. Prefer byte/parser offsets as canonical locations and derive line/column for display, because line-only spans are ambiguous and can drift. Validate AI-proposed nodes, relationships, and source spans against parsed source before rendering; do not present unverifiable claims as facts. Persist per-folder analysis incrementally as files are analyzed. Stable cross-edit identities and migration details remain subject to the persistence research task.
 
 ## 10. Language and parser strategy
 
@@ -230,30 +235,30 @@ All tiers must pass shared safety and integrity gates: no crash on malformed/uns
 
 ## 11. AI, providers, and structured output
 
-- AI may explain code in many languages, but semantic fluency does not guarantee correct source mapping, control-flow extraction, or equivalent quality across languages. Maintain language-specific structural adapters and evaluation fixtures; treat AI as an enrichment layer rather than a substitute for language support.
-- AI enriches parser-produced structure with plain-language meaning; it does not generate the authoritative graph from scratch.
-- Start with one structured response schema and strict validation. Bound output size and reject unknown IDs/ranges rather than trusting model-provided coordinates.
+- AI analyzes the opened file or selected symbol and returns structured semantic/logic analysis for Astynex to validate and render. Semantic fluency does not guarantee correct source mapping or control-flow claims, so maintain language-specific conformance/evaluation fixtures.
+- Astynex software—not an image-generation model—constructs and renders the native interactive graph from validated structured AI output and parser-backed source facts.
+- Start with a versioned structured response schema and strict validation. Bound output size; reject unknown files, node/edge references, and invalid/out-of-source ranges rather than trusting model-provided coordinates. Unsupported/uncertain claims must remain labeled or be omitted.
 - Provider integration should isolate protocol details (for example, OpenAI-compatible HTTP versus a distinct messages protocol) from model metadata and UI. The system should make a new provider or compatible endpoint straightforward to add without modifying parser, IR, or visualization code.
 - Use OpenCode and other relevant open-source projects as architecture study references for provider breadth and integration patterns. Rust implementation should be designed for Astynex's requirements; any direct reuse of third-party source is a separate, explicit engineering and license-review decision, not implied by architectural study.
-- Local inference is a product capability with its own compatibility, performance, and support constraints; do not promise “code never leaves the device” for a configuration that uses a remote endpoint.
+- AI analysis is required for analysis/explanation/graph features. Ollama is the supported offline option and must be installed/configured and available; remote providers require explicit code-context disclosure and user action. Never claim code stays local when a remote endpoint is configured.
 - Credentials belong in OS-backed secure storage where available. Configuration files may store non-secret provider settings and secret references, never raw secrets by default.
-- Cache policy must be explicit: what is cached (structural parse, semantic result, or both), where it is stored, invalidation key, retention/deletion behavior, and whether prompts/responses contain source.
+- Persistence policy must specify what is cached (parse facts, AI analysis, graph-ready IR), per-folder database location, content fingerprint/invalidation, schema migration, retention/deletion, and whether prompts/responses contain source. Resolve these details in the persistence research task before implementation.
 
 ## 12. Privacy and security
 
-Threat model includes accidental source disclosure, secret leakage through prompts/logs/cache, malicious repositories, oversized or malformed files, and untrusted model output.
+Threat model includes accidental source disclosure, secret leakage through prompts/logs/cache, malicious repositories, oversized or malformed files, unauthorized source modification, and untrusted model output.
 
 Requirements:
 - Remote analysis is opt-in per user action; show provider, endpoint/model, and submitted source/context scope.
 - Exclude obvious secret files and configurable ignored paths from context construction; do not treat this as a guarantee that secrets are absent.
 - Redact provider credentials from logs/errors and never include them in crash reports.
-- Treat repository content and model responses as untrusted data; impose size/time limits and validate schemas.
+- Treat repository content and model responses as untrusted data; impose size/time limits and validate schemas and source mappings. The AI subsystem is analysis-only and cannot write to project files.
 - Document local cache location and provide a clear-data action before persistent caching is introduced.
 - Explain that using a third-party endpoint subjects transmitted code to that service’s policies.
 
 ## 13. Testing strategy
 
-Testing is a product quality requirement from the first implementation, not a late-stage hardening task. The exact development workflow (including whether strict test-driven development is enabled) is a project/session configuration decision; having a test runner does not itself establish that TDD is active.
+Testing is a product quality requirement from the first implementation, not a late-stage hardening task. Strict RED → GREEN → REFACTOR TDD is the selected development workflow. Before implementation, establish and record the exact runner and configuration; presence of a test runner alone is not evidence that strict TDD is active.
 
 ### Test layers
 
@@ -267,9 +272,9 @@ Testing is a product quality requirement from the first implementation, not a la
 
 Tests should be deterministic and isolated. CI must not call paid/remote AI services or require developer credentials. Snapshot tests may be used for stable IR output, but assertions should target meaningful behavior and source mapping rather than brittle formatting alone. Every fixed defect should gain a regression test at the narrowest appropriate layer.
 
-### Test-driven implementation option
+### Strict test-driven implementation
 
-When strict TDD is enabled for a work item, follow **RED → GREEN → REFACTOR**: add a focused failing test and observe the failure before implementation; make it pass with the smallest coherent change; then refactor while keeping the test suite green. Record the exact runner and observed results. When TDD is not enabled, tests remain required at the proportionate level; only the sequence differs.
+For every implementation work item, follow **RED → GREEN → REFACTOR**: add a focused failing test and observe the failure before implementation; make it pass with the smallest coherent change; then refactor while keeping the test suite green. Record the exact runner and observed results in the ODD task evidence. The runner/configuration must be established before source implementation starts.
 
 ## 14. Error handling and logging
 
@@ -310,12 +315,12 @@ If telemetry is ever added, make it opt-in, document event fields, and never col
 ## 16. MVP acceptance criteria
 
 A candidate MVP is acceptable when:
-1. A user can open a local sample project and navigate to a supported function.
+1. A user can open a local project, browse to a supported file, and read its source without configuring an AI provider.
 2. All 20 catalog languages are available in the MVP, each assigned a coverage tier whose required conformance gate passes.
-3. Python and TypeScript pass the end-to-end project-to-function-to-graph-to-source validation before the remaining languages are accepted.
-4. The source view and parser-derived structural representation are linked through verifiable ranges, and a user can navigate from a supported node to its source; unsupported mappings are explicit.
-5. AI is optional; valid structured output improves the explanation without changing parser facts, and invalid output is safely rejected or flagged.
-6. The complete browsing/structural path works without network access or configured AI.
+3. Python and TypeScript pass the end-to-end file/symbol-to-analysis-to-native-graph-to-source validation before the remaining languages are accepted.
+4. AI analyzes the opened file or selected applicable symbol plus explicitly scoped directly related context; Astynex validates the structured result and renders an interactive graph with verifiable source mappings.
+5. Provider-unavailable states preserve project/file/source browsing but disable analysis, AI explanation, and graph-generation features; Ollama works as the offline AI option when installed/configured.
+6. AI cannot modify files; invalid, unmappable, or unsupported output is rejected, omitted, or explicitly qualified.
 7. Remote transmission is disclosed before invocation and limited to the stated context.
 8. Representative unit, language-conformance, contract, and integration tests cover parser constructs, malformed input, IR validation, provider/schema failure, error containment, and source navigation; CI requires no secrets or paid network calls.
 9. Failures surface stable diagnostics and actionable user messages without leaking secrets or source by default.
@@ -326,21 +331,21 @@ A candidate MVP is acceptable when:
 
 | Risk | Consequence | Mitigation |
 | --- | --- | --- |
-| Diagrams look plausible but misrepresent behavior | Users trust false explanations | Parser-grounded structure, provenance, source links, explicit partial/unknown states, comprehension tests |
+| AI diagrams look plausible but misrepresent behavior | Users trust false explanations | Versioned structured output, parser-checked source mappings, provenance, explicit partial/unknown states, conformance fixtures, comprehension tests |
 | Tree-sitter syntax is mistaken for semantic analysis | Incorrect call/control-flow claims | State analysis limits; test ambiguous constructs; avoid unsupported edges |
 | Graph density overwhelms users | Slower comprehension than source | Function-sized scope, progressive detail, layout prototype, focus mode |
 | AI output varies or is malformed | Unreliable UX and broken graphs | Versioned schema, strict validation, deterministic fallback |
-| Remote code disclosure surprises users | Privacy harm and loss of trust | Explicit per-action disclosure, context preview, local/no-AI path |
+| Remote code disclosure surprises users | Privacy harm and loss of trust | Explicit per-action disclosure, directly-related-context preview, Ollama offline option, no source transmission before user action |
 | Provider abstraction expands prematurely | Maintenance burden delays core value | Implement the smallest useful integration set; separate concepts without building a marketplace |
 | Language scope is too broad | Shallow support and fragile parser behavior | Include 20 languages in the MVP with graduated tier gates; validate Python and TypeScript first, require per-language conformance fixtures, documented limits, and no unsupported claims |
 | Provider breadth outpaces quality | Inconsistent errors, capabilities, or privacy behavior across integrations | Stable protocol boundaries, shared contract tests, representative integrations first, and provider-specific capability declarations |
 | Studied upstream code is reused without adequate review | Attribution, license, or maintenance obligations are missed | Verify repository/version/license and notices before any code reuse; keep architecture study distinct from source reuse |
-| Local model performance is poor | Local-first promise disappoints | Treat local inference as an explicit tested capability; report hardware/model requirements |
+| Local model performance is poor | Offline analysis is slow or unusable | Treat Ollama inference as an explicitly tested capability; document hardware/model requirements and retain source browsing when unavailable |
 
 ## 18. Roadmap hypothesis
 
 1. **Discovery/prototype:** Validate function-level source ↔ flow interaction and language choice with representative code.
-2. **MVP:** Project browsing, linked function flow, optional structured AI explanation, privacy disclosure, no-AI operation, and an extensible provider boundary validated with a small representative integration set. Include the 20-language catalog at MVP release with graduated, tested coverage tiers; validate the end-to-end experience first with Python and TypeScript and then satisfy the declared gate for each remaining language.
+2. **MVP:** Linux/Windows project and source browsing; on-demand AI analysis of an opened file/selected symbol with directly related context; validated native interactive graph and explanation; per-folder incremental persistence; required AI provider with Ollama as offline option; and a small extensible provider set. Source reading remains available without a provider. Include all 20 languages at graduated, tested coverage tiers; validate Python and TypeScript end to end first and satisfy the declared gate for each remaining language.
 3. **Hardening:** Usability/accessibility, performance envelope, cache decisions, provider contract tests, and reliability improvements based on evidence across the supported language tiers.
 4. **Post-MVP expansion:** Improve construct coverage and tier placement, then consider call-graph and cross-file navigation with explicit completeness limits, dependency/project graphs, data-flow views, and richer local inference where validated demand supports them.
 
@@ -349,36 +354,34 @@ This is a sequence of hypotheses, not a commitment to deliver every phase.
 ## 19. Open product decisions
 
 These decisions should be resolved before detailed implementation planning:
-1. Who is the first primary user: working developers onboarding, maintainers, or learners?
-2. Which dated popularity sources and language-readiness criteria should periodically refresh the 20-language MVP catalog?
-3. Is offline structural analysis the MVP baseline, with AI optional, or must local-model semantic analysis ship in 0.1?
-4. Which operating systems are required for the first usable release?
-5. Should the initial project graph be in MVP, or should the MVP focus exclusively on a selected function and defer project-wide graphs?
-6. What initial file-size and project-size envelope should be supported?
-7. Should analysis results persist, and if so, what privacy/retention controls are required?
-8. Which hosted and local AI integrations should form the smallest representative initial provider set?
-9. What policy should govern direct third-party code reuse versus independently implementing patterns learned from architecture studies?
+1. Which dated popularity sources and language-readiness criteria should periodically refresh the 20-language MVP catalog?
+2. Which user cohort and sample projects should be prioritized for the comprehension pilot?
+3. Which persistence technology and content invalidation/migration strategy best fit one incrementally populated database per project folder?
+4. Which remote AI provider/protocol should join Ollama in the minimum MVP integration set?
+5. Which initial file-size/context limits, ignore rules, and scale-test envelope should be used for on-demand analysis?
+6. Which measurable pilot criteria should validate product value?
+7. What policy should govern direct third-party code reuse versus independently implementing patterns learned from architecture studies?
 
 ## 20. Recommended additions to the original concept
 
 The following are important because they reduce product risk, not because they add feature breadth:
 
-1. **Make uncertainty and provenance visible.** Label parser-derived facts separately from AI interpretation; expose partial parsing and unsupported constructs.
-2. **Design the no-AI path as a first-class experience.** A user should get useful structure, navigation, and graceful limitations without credentials or network access.
+1. **Make uncertainty and provenance visible.** Label source/parser facts separately from AI interpretation; expose partial analysis and unsupported constructs.
+2. **Preserve source browsing without a provider.** Users can open/read code, while analysis, explanations, and graph generation require a configured provider; Ollama is the offline route.
 3. **Add a context preview/privacy gate.** Let users see what code would leave the machine before a remote request, with ignore/exclusion controls.
 4. **Add source-range contracts to the IR.** Byte/offset spans, provenance, document completeness, and diagnostics are foundational for dependable bidirectional navigation.
-5. **Validate comprehension empirically.** Compare with source-only reading before investing in provider breadth or project-wide graphs.
+5. **Validate comprehension empirically.** Compare with source-only reading before investing in provider breadth or a whole-project graph.
 6. **Define accessibility and graph-scale behavior.** Keyboard interaction, non-color cues, focus mode, and readable large-function behavior are core requirements for a graph-oriented tool.
 7. **Threat-model repository and model inputs.** Repositories and LLM output are untrusted; enforce size limits, schema checks, secret-safe logs, and bounded context.
 8. **Keep cache and telemetry decisions explicit.** Source-derived artifacts can be sensitive even when stored locally; specify retention and deletion before persistence.
-9. **Separate “syntax graph” from “semantic graph.”** Tree-sitter is not a compiler or whole-program analyzer; communicate what is known versus inferred.
+9. **Separate source facts from AI semantic analysis.** Tree-sitter is not a compiler or whole-program analyzer; validate AI-produced graph data against source and communicate what is known, inferred, or uncertain.
 10. **Prototype before committing to the entire UI stack.** Verify that the chosen graph widget can support selection, source synchronization, graph scale, and accessible navigation in the target desktop framework.
 11. **Ship broad language availability without promising uniform depth.** Include a transparently ranked 20-language catalog in the MVP, validate Python and TypeScript end to end first, and require every language to pass an explicit tier gate and source-mapping fixtures; AI familiarity or grammar availability is not proof of reliable structural analysis.
 12. **Make provider extensibility a first-class architecture concern.** Study proven multi-provider systems, keep provider/protocol/model boundaries explicit, and validate integrations with shared contract tests; broad support should not mean unchecked integration count.
 13. **Separate architecture learning from code reuse.** Study OpenCode as an engineering reference, but review the exact upstream repository/version/license before any direct source reuse and record provenance for reused components.
-14. **Make testing, errors, and observability foundational.** Define test layers and language conformance fixtures, use typed subsystem errors with graceful degradation, and adopt privacy-safe structured logging before adding integrations or broad language support.
+14. **Make strict TDD, errors, and observability foundational.** Use RED-GREEN-REFACTOR from the first implementation, define language conformance fixtures, typed subsystem errors, graceful degradation, and privacy-safe structured logging.
 15. **Keep architecture scalable through boundaries, not speculation.** Separate UI, domain/IR, parsers, providers, storage, and diagnostics; add abstractions and crate boundaries when real variation justifies them, and enforce dependency direction with tests/review.
 
 ---
 
-**Document note:** This PRD consolidates the supplied concept and interface reference into a testable product direction. The 20-language MVP catalog and tiers are initial product commitments subject to dated popularity/grammar validation; the exact catalog ranking and coverage gates must be verified against evidence and conformance results before release. The proposed architecture, provider set, platform targets, and usability thresholds have not yet been validated.
+**Document note:** This PRD consolidates the supplied concept and interface reference into a testable product direction. Confirmed product constraints include Linux and Windows targets, on-demand file/symbol analysis with directly related context, AI-required analysis and native software-rendered graphs, source-read access without a provider, no AI file modification, per-folder incremental persistence, and strict TDD. The 20-language catalog and tiers remain subject to dated popularity/grammar validation; persistence technology, initial remote provider set, scale envelope, and usability thresholds remain to be validated.
