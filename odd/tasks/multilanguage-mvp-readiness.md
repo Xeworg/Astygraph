@@ -32,11 +32,18 @@ Define the MVP as a 20-language release with explicit, graduated structural-anal
    - Alternatives reviewed: SQLite graph extensions (no suitable specific extension established); embedded graph stores, including `sqlitegraph` (GPL-3.0-only and single-maintainer posture are material tradeoffs; not selected).
    - Remaining before implementation: define cached payloads, fingerprint/invalidation scope, migration mechanism, retention/deletion and cache location; validate durability/configuration and test behavior on Linux and Windows.
    - Evidence: SQLite recursive CTE graph traversal ([SQLite WITH](https://www.sqlite.org/lang_with.html)); WAL behavior and same-host constraint ([SQLite WAL](https://www.sqlite.org/wal.html)); `rusqlite` bundled feature ([docs.rs](https://docs.rs/crate/rusqlite/latest)).
-   - Commit: `9d25092 docs: select rusqlite for graph persistence`.
-6. [ ] Study OpenCode provider architecture and define initial AI-provider scope without adding OpenCode as dependency or copying code.
-7. [ ] Validate the 20-language catalog, grammar availability, and tier assignments with dated evidence.
-8. [ ] Define large-project scan limits, exclusions, cancellation, and scale-test envelope.
-9. [ ] Establish workspace and strict TDD runner/configuration.
+   - Commit: `928f476 docs: select rusqlite for graph persistence`.
+6. [x] Finalize SQLite cache architecture (per-project, per-file context, transactional invalidation, lazy rebuild).
+   - Decision: One SQLite database per project at `.astynex/cache.db`; organized by file and directly related context; obsolete dependent data replaced/invalidated transactionally; clear-cache removes derived artifacts only; lazy rebuild on request, no eager scan.
+   - Cache scope: validated AI analysis (IR), parser facts, source-range fingerprints, dependency metadata. Not cached: raw source, prompts, raw provider responses, or credentials. Validated IR remains sensitive source-derived data.
+   - `.astynex/` excluded from Astynex discovery; Git ignore recommended in docs.
+   - Open before implementation: exact fingerprint algorithm, invalidation granularity, bounded-context invalidation scope, migration mechanism.
+   - **Payload/retention nuances:** source content is read from disk on demand, not stored; prompts and raw provider responses are not persisted; clear-cache does not touch provider configuration or credentials.
+   - Follows from: Task 5 engine decision (`928f476`).
+7. [ ] Study OpenCode provider architecture and define initial AI-provider scope without adding OpenCode as dependency or copying code.
+8. [ ] Validate the 20-language catalog, grammar availability, and tier assignments with dated evidence.
+9. [ ] Define large-project scan limits, exclusions, cancellation, and scale-test envelope.
+10. [ ] Establish workspace and strict TDD runner/configuration.
 
 ## Evidence
 - PRD update is the deliverable; no source implementation or tests are part of this documentation task.

@@ -148,7 +148,15 @@ Prefer a small set of stable boundaries over premature framework breadth:
 - **Analysis core:** AI request/context orchestration, structured-result validation, provenance, cancellation, and diagnostics.
 - **Astynex IR:** UI-independent, versioned representation of AI analysis, validated nodes/edges, source spans, uncertainty, and annotations.
 - **AI boundary:** Required provider registry, protocol adapters, model capabilities, credential references, request policy, structured-output validation, and Ollama support for offline use.
-- **Persistence:** One local SQLite database associated with each project folder, incrementally updated as files are analyzed. Use Rust `rusqlite` with its `bundled` feature and relational node/edge tables; use recursive CTEs for bounded graph traversal. Content invalidation, migration strategy, cache contents, retention, and deletion details remain to be specified before implementation.
+- **Persistence:** One local SQLite database per project folder at `.astynex/cache.db`. Cache is organized by analyzed file and directly related context used for that analysis; obsolete dependent data is replaced or invalidated transactionally rather than kept indefinitely. Only current valid analyses are retained. `.astynex/` is excluded from Astynex project discovery and Git ignore for `.astynex/` is recommended in user documentation. A "clear cache" operation deletes derived analysis cache only—never source files, configuration, or credentials. Cache is rebuilt lazily on request (per-file or per-symbol on demand), not through an eager whole-project scan.
+
+  **Cache contents and retention:**
+  - Persisted: validated AI analysis results (IR nodes/edges), parser-derived structural facts, source-range fingerprints, and dependency metadata sufficient to invalidate stale entries when source changes.
+  - **Not persisted:** raw source file contents (read from disk), original prompts, raw provider responses, or credentials. Validated IR can still contain source-derived text and must be treated as sensitive cache data.
+  - Retention is driven by source-file fingerprinting; if the source file or directly related context changes, dependent cache entries are invalidated transactionally on next access or explicit rebuild.
+  - Clear-cache is an explicit user action scoped to derived analysis artifacts; it does not touch provider configuration, credentials, or project source.
+
+  **Implementation:** `rusqlite` with `bundled` feature, relational node/edge tables, recursive CTEs for bounded traversal. Migration strategy, exact fingerprint/invalidation granularity, and bounded-context invalidation scope are implementation details resolved before coding.
 - **Visualization adapters:** Render only validated IR as native interactive graph elements; never treat generated images or UI widgets as canonical analysis data.
 - **Diagnostics and observability:** Typed errors at subsystem boundaries, user-actionable diagnostics, and structured logs through a centralized logging setup.
 
