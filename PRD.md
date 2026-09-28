@@ -177,6 +177,23 @@ The goal is to make adding providers inexpensive from the beginning, not to ship
 
 ### Initial IR proposal
 
+Tree-sitter is the language-specific parser. It provides syntax nodes, byte offsets, and source positions; it is not a compiler front-end and does not supply a complete CFG, call graph, or universal normalized AST.
+
+The Astynex IR is a versioned, UI-independent representation of **validated AI-generated semantic analysis**. It does not replace or subsume the parser. The two layers are kept distinct:
+
+- **Parser facts** (Tree-sitter): symbol boundaries, syntax kinds, byte spans, structural containment. These are language-specific, read-only, and sourced directly from the parser adapter. They are not a universal cross-language AST.
+- **Validated semantic IR** (Astynex): AI-authored nodes, edges, annotations, and source mappings that have been verified against parser-provided facts. Unverifiable or uncertain content is rejected, omitted, or explicitly labeled rather than presented as fact.
+
+Canonical source locations are byte/parser offsets from Tree-sitter; line/column are derived for display only. AI-proposed nodes, edges, and source spans are validated against parser facts before entering the IR. The IR does not perform its own syntactic analysis.
+
+**Non-goals for MVP:**
+- No compiler-grade AST or semantic graph, regardless of language.
+- No complete control-flow graph (CFG) across all execution paths.
+- No call graph across modules, dynamic dispatch, or reflection.
+- No second universal normalized AST layer shared across language adapters.
+
+Richer hierarchical facts are revisited only when concrete validation cases demonstrate a concrete need; they are not planned speculatively.
+
 ```text
 AnalysisDocument
 - schema_version
@@ -211,7 +228,7 @@ Annotation
 - provenance and optional confidence
 ```
 
-Keep parser-derived facts and AI-generated semantic interpretations distinguishable. Prefer byte/parser offsets as canonical locations and derive line/column for display, because line-only spans are ambiguous and can drift. Validate AI-proposed nodes, relationships, and source spans against parsed source before rendering; do not present unverifiable claims as facts. Persist per-folder analysis incrementally as files are analyzed. Stable cross-edit identities and migration details remain subject to the persistence research task.
+Parser-derived facts and AI-generated semantic interpretations remain distinguishable through the `provenance` field and explicit diagnostics. Where a parser does not yet cover a construct, the gap is surfaced as partial or unsupported rather than inferred. Persist per-folder analysis incrementally as files are analyzed. Stable cross-edit identities and migration details remain subject to the persistence research task.
 
 ## 10. Language and parser strategy
 
@@ -231,6 +248,36 @@ Swift is temporarily deferred rather than replaced: the old `tree-sitter/tree-si
 SQL is included for user value, but its query structure is not represented as function-control-flow parity with general-purpose languages. Each catalog entry must identify whether its grammar covers a programming language, query language, or related source format, and define applicable tests accordingly. Before release, verify the catalog against dated popularity evidence and actual grammar availability/version; Tree-sitter grammar availability alone does not establish product support.
 
 Every language requires a documented grammar and version, a language-specific fixture corpus, declared supported/unsupported constructs, source-mapping checks, and an explicit UI representation of partial analysis. Python and TypeScript are the first vertical slices and must exercise the complete project-to-function-to-graph-to-source journey before the same shared contracts are expanded to the remaining languages.
+
+#### Parser facts and semantic IR boundary
+
+Astynex keeps parser facts and validated semantic analysis strictly separate throughout the system.
+
+- **Parser facts** are produced by Tree-sitter language adapters and include: syntax kinds, named-child containment, byte spans and offsets, and language-specific structural signals. These facts are read-only and language-specific. They are not a universal cross-language AST.
+- **Semantic IR** is the validated output of AI analysis stored in the Astynex IR format. AI proposes nodes, edges, and source mappings; Astynex validates each against parser facts before accepting or rejecting it.
+
+The boundary is enforced by design:
+
+| Property | Parser facts | Validated semantic IR |
+|---|---|---|
+| Source | Tree-sitter grammar/parser | AI-structured output |
+| Kind vocabulary | Language-specific syntax nodes | Graph node kinds (operation, call, etc.) |
+| Source spans | Canonical byte/offset spans from parser | AI-proposed spans validated against parser |
+| Completeness | Full parse of declared constructs | AI-defined; unverifiable content flagged/rejected |
+| Provenance | `parser` | `AI` or `user` |
+| Persistence | Cached parser-derived structural facts | Validated IR nodes/edges |
+
+**Non-goals for MVP:**
+
+- No compiler-grade AST, complete CFG, or call graph is implied by either the parser layer or the IR layer.
+- No second universal normalized AST layer shared across language adapters; each adapter exposes facts specific to its grammar.
+- Parser adapters do not perform semantic analysis (type resolution, inter-procedural flow, dynamic dispatch, reflection, or macro expansion).
+
+**Minimal parser fact set:**
+
+Do not prescribe a comprehensive cross-language parser-fact schema up front. Extract only the minimum typed facts required to validate AI analysis against source. Python and TypeScript vertical-slice tests determine the concrete shape of this fact set; extend it only when a concrete validation case requires it. Every emitted parser fact must carry its canonical byte span, provenance, and—where the grammar does not yet cover a construct—explicit partial or unsupported status rather than silent omission.
+
+Diagnostics, byte-span provenance, and partial/unsupported states are first-class concerns at both the parser-adapter boundary and the IR validation layer. They are not deferred or optional.
 
 Tree-sitter supplies syntax nodes and positions, not a complete compiler-grade control-flow or call graph. The common conformance suite must cover, where applicable: language detection and valid/incomplete/malformed parsing; function or language-appropriate unit boundaries; sequence, branches, nested loops, early exits/returns, calls, and async constructs; exact source-span and IR relationships; comments, Unicode, and nesting; and constructs that must be reported as partial or unsupported. SQL and shell fixtures use domain-appropriate expectations rather than forcing inapplicable function semantics.
 

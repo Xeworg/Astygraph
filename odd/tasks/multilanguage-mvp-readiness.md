@@ -17,6 +17,7 @@ Define a provisional 19-candidate MVP catalog with explicit, graduated structura
 - Use strict RED-GREEN-REFACTOR TDD.
 - Persistence uses one local SQLite database per project folder, incrementally populated as files are analyzed, accessed from Rust through `rusqlite` with the `bundled` feature. Store graph nodes and edges relationally and use recursive CTEs for bounded traversal. Cache contents, invalidation, migrations, retention, and deletion details remain open until specified before implementation.
 - Scale strategy is on-demand analysis of opened/related files, not a full-project eager scan; exact limits remain for measurement.
+- Parser facts and AI-derived semantic analysis remain separate: Tree-sitter is the syntax/source-location source, while the Astynex IR represents validated analysis. Do not add a second normalized AST tree for MVP; derive only the minimal parser facts needed to validate analysis, and let Python/TypeScript vertical-slice tests determine their shape. This is a design boundary, not a compiler-grade AST, CFG, or call-graph commitment.
 - The provided UI image is directional; its project-wide graph is not MVP scope.
 
 ## Tasks
@@ -82,6 +83,18 @@ Define a provisional 19-candidate MVP catalog with explicit, graduated structura
     - **Browsing unaffected:** Deferred languages are not advertised as analysis-supported; users can still open/read their source as text. Highlighting requires its own validated path.
     - **Documentation updated:** PRD.md Section 10 with grammar gate criteria, explicit candidate/implementation distinction, stale-signal guidance, and read-only browsing policy.
     - **Validation:** `git diff --check` and delegated readback passed; Swift deferral preserved. Work-unit commit: `14733e5 docs: gate MVP languages on maintained grammars`.
+
+13. [x] Specify the parser-facts and AI-analysis boundary without adding a normalized AST layer.
+    - **Decision:** Keep Tree-sitter as the language-specific parser and source of syntax nodes/byte spans. Keep the Astynex IR as the distinct, versioned representation of validated semantic analysis. Do not introduce a second universal normalized AST/tree for MVP.
+    - **Constraint:** Extract only the minimal typed parser facts required to validate AI analysis; determine the fact set from Python/TypeScript vertical-slice tests rather than prescribing a comprehensive cross-language schema up front. Preserve parser/AI provenance, canonical byte spans, diagnostics, and explicit partial/unsupported states.
+    - **Non-goals:** No compiler-grade AST, complete CFG, or call graph is implied. Revisit richer hierarchical facts only if concrete validation cases require them.
+    - **Acceptance:** PRD §§9–10 state the parser-fact/semantic-IR boundary and its non-goals consistently with existing MVP scope; docs-only validation and readback passed.
+    - **Route:** Delegated direct writer because the task updates the PRD and this feature task record (multi-file write trigger).
+    - **Verification:** `git diff --check` passed.
+    - **Evidence:** Independent read-only architecture review by `gentle-ai-explore`; parent synthesis accepted the recommendation with the qualification that tests determine the minimal fact set.
+    - **PRD §9 (Initial IR proposal)** updated to: introduce the two-layer model (parser facts / validated semantic IR) explicitly; state the non-goals (no compiler-grade AST, complete CFG, or call graph; no second universal normalized AST); and note that line/column are derived from canonical byte/offset spans.
+    - **PRD §10 (Language and parser strategy)** updated to add a new `#### Parser facts and semantic IR boundary` subsection between the tier table and the Tree-sitter conformance paragraph. The subsection includes: a definition of each layer; a three-column property table (`Property`, `Parser facts`, `Validated semantic IR`); an explicit non-goals block matching §9; a minimal-fact-set policy stating that Python/TypeScript vertical-slice tests determine the concrete fact shape; and a statement that diagnostics, byte-span provenance, and partial/unsupported states are first-class concerns at both boundaries.
+    - **Commit:** Pending for parent.
 
 ## Evidence
 - PRD update is the deliverable; no source implementation or tests are part of this documentation task.
