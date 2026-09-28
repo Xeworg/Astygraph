@@ -40,6 +40,7 @@ Define the MVP as a 20-language release with explicit, graduated structural-anal
    - Open before implementation: exact fingerprint algorithm, invalidation granularity, bounded-context invalidation scope, migration mechanism.
    - **Payload/retention nuances:** source content is read from disk on demand, not stored; prompts and raw provider responses are not persisted; clear-cache does not touch provider configuration or credentials.
    - Follows from: Task 5 engine decision (`928f476`).
+   - Work-unit commit: `0b069fd docs: define file-oriented cache policy`. Documentation-only validation: `git diff --check`; delegated readback confirmed scope and preserved OpenCode reference.
 7. [ ] Study OpenCode provider architecture and define initial AI-provider scope without adding OpenCode as dependency or copying code.
 8. [ ] Validate the 20-language catalog, grammar availability, and tier assignments with dated evidence.
 9. [ ] Define large-project scan limits, exclusions, cancellation, and scale-test envelope.
