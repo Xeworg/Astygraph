@@ -64,21 +64,61 @@ Define a provisional 19-candidate MVP catalog with explicit, graduated structura
      - OpenAI-compatible and Anthropic-compatible endpoints: support varies by provider; Astynex validates locally and reports unsupported features honestly.
    - PRD updated with provider family table and explicit scope constraints.
    - Validation: `git diff --check` passed; delegated contradiction scan passed after correcting the family count. Documentation work-unit commit: `a3dd3ac docs: define initial AI provider families`.
-8. [ ] Validate the provisional 19-candidate catalog, grammar availability, and tier assignments with dated evidence.
-    - **Note:** Catalog is provisional; Swift is deferred pending grammar validation (see Task 11). Final validated language count may be below 19 after grammar/demand audit.
-9. [ ] Define large-project scan limits, exclusions, cancellation, and scale-test envelope.
-10. [ ] Establish workspace and strict TDD runner/configuration.
+8. [x] Close the lightweight catalog/demand decision.
+    - **Decision:** Retain all 19 catalog candidates as provisional. Record dated demand basis: Stack Overflow 2025 Developer Survey (developer-reported extensive use, survey question, n=31,771; survey published 2025; https://survey.stackoverflow.co/2025/technology) and GitHub Octoverse 2025 (GitHub monthly contributor counts, August 2025 snapshot; TypeScript ranked #1 by contributor count, ahead of Python/JavaScript; https://github.blog/news-insights/octoverse/octoverse-a-new-developer-joins-github-every-second-as-ai-leads-typescript-to-1/).
+    - **Source methodology note:** The two sources use different populations and measurement methods. They inform candidate prioritization, not grammar health or Astynex support. Do not claim all language ranking details are verified from these sources alone.
+    - **Grammar gate preserved:** Per-grammar repo/version/license/Rust integration and tier fixtures remain required pre-support implementation gates (Task 12 / PRD §10 grammar gate). Candidate-level evidence is not invented.
+    - **Swift deferral preserved:** Task 11 decision stands unchanged.
+    - **Task 8 scope:** This task is scoped to the catalog/demand closeout only. The remaining open gate is the grammar evaluation gate (§10) evaluated during implementation for each candidate.
+9. [x] Define large-project scan limits, exclusions, cancellation, and scale-test envelope.
+    - **Decision:** Scale envelope closed with user-approved provisional numeric caps, all labeled as hypotheses pending benchmark measurement against NFR-7. The feature is on-demand (discovery/index/search responsiveness), not eager parsing of every source file.
+    - **Provisional caps (hypothesis pending benchmark; tune after measurement against NFR-7):**
+      - **Generated deterministic project fixtures:** 1,000 entries (routine integration), 10,000 entries (large-project benchmark), 50,000 entries (stress/manual or non-blocking benchmark). Entry means filesystem path, not supported source file.
+      - **Initial configurable discovery ceiling:** 50,000 entries per project scan; when reached, stop adding work, report incomplete/limit-reached, keep browsing available, allow changing limit/configuration, do not silently claim completeness.
+      - **Parsing ceiling:** 1 MiB UTF-8 bytes per file. Larger files openable as text, skip structural parse with visible diagnostic, no fabricated structure.
+      - **Context ceiling:** selected file/symbol plus at most 5 directly related files and 128 KiB aggregate UTF-8 source text before provider tokenization; deterministic selection; disclose omitted related files/bytes; never silently truncate a source span or claim complete context.
+      - **Exclusions:** Exclude `.git/`, `.astynex/`, binary/non-text files, and ignored paths from discovery/analysis. Honor `.gitignore` with configurable user overrides. Exclude common generated/build/cache directories by configurable defaults. Exclude obvious secrets from provider context. Do not follow symlinks by default (avoids cycles/directory escape); make it an explicit future setting only if warranted.
+      - **Cancellation:** Implement for discovery/indexing, parsing, context construction, provider request, and graph construction where practical: stop scheduling work, preserve browsing and already-validated/persisted state, maintain DB transaction atomicity, return explicit cancelled/partial status distinct from failure, report progress for long-running work.
+      - **Benchmarks:** Record environment/project fixture, path/file/byte counts, p50/p95 wall time, peak memory, cancellation responsiveness. No latency SLA until measured. CI uses 1k and bounded 10k cases; 50k stress is non-blocking/manual/nightly.
+    - **PRD updates:**
+      - §7 FR-3: File size behavior with diagnostic for oversized files.
+      - §8 NFR-2: Discovery ceiling (50,000 entries) and incomplete/limit-reached behavior.
+      - §8 NFR-7: Provisional limits listed explicitly with hypothesis label.
+      - §9 Architecture principles: On-demand scope, exclusion rules, cancellation contract.
+      - §12 Privacy: Expanded exclusion rules with symlink default and configurable overrides.
+      - §13 Testing strategy: Scale-envelope test sizes table (1k/10k/50k fixtures).
+      - §14 Error handling: Cancellation contract added.
+      - §19 Open Decision #5: Marked resolved with capsule summary; cross-references to NFR-7.
+    - **Cross-references:** Long tables are not duplicated; scale-envelope table in §13, provisional limits summarized in NFR-7, full details in Open Decision #5 resolution.
+    - **Validation:** `git diff --check` passed (see below).
+    - **Acceptance evidence:** `git diff --check` output clean; Task 9 marked done.
+10. [x] Establish workspace and strict TDD runner/configuration.
+    - **Decision:** Single-package Rust workspace (`astynex`, package name `astynex`, one workspace member). `edition = "2021"` declared; no toolchain pin. One smoke behavior: exported `APPLICATION_NAME` constant asserting `"Astynex"`. No eframe, Tree-sitter, database, provider, or implementation features. `Cargo.lock` auto-generated.
+    - **TDD mode:** Strict RED-GREEN-REFACTOR from the prior user-approved PRD decision; exact runner `cargo test --workspace --all-targets` (Cargo 1.95.0).
+    - **TDD evidence:**
+      - RED: `cargo test --workspace --all-targets` → `error[E0425]: cannot find value APPLICATION_NAME in crate astynex`; test runner exit 101.
+      - GREEN: after adding `pub const APPLICATION_NAME: &str = "Astynex";` in `src/lib.rs` → `application_name_exported ... ok; 1 passed; 0 failed`.
+      - REFACTOR: not justified — three-file surface (Cargo.toml, src/lib.rs, tests/app_identity.rs) is already lean; brevity IS clarity at this scale.
+    - **Validation:**
+      - `cargo test --workspace --all-targets` → `test result: ok. 1 passed; 0 failed`.
+      - `cargo fmt --all -- --check` → passed (trailing newline normalization applied).
+    - **Files created:**
+      - `Cargo.toml` — package manifest (`name = "astynex"`, `edition = "2021"`, `path = "src/lib.rs"`).
+      - `src/lib.rs` — library root with `APPLICATION_NAME` constant.
+      - `tests/app_identity.rs` — smoke integration test asserting `APPLICATION_NAME == "Astynex"`.
+      - `Cargo.lock` — auto-generated lockfile.
+    - **Preserved:** pre-existing uncommitted edits to `PRD.md` and `odd/tasks/multilanguage-mvp-readiness.md` (this task); untracked `.codegraph/` directory untouched.
 11. [x] Scope change: remove Swift from MVP catalog pending grammar validation.
     - **Decision:** Swift is deferred from the 19-language catalog rather than replaced. The old tree-sitter/tree-sitter-swift README states 'Status - Abandoned' and links to alex-pinkus/experimental-tree-sitter-swift as an alternative. A replacement grammar exists (alex-pinkus/tree-sitter-swift) but its Tier 2 Astynex conformance has not been validated.
     - **Rationale:** User explicitly chose to temporarily remove languages with abandoned grammars from MVP rather than replace to maintain count, prioritizing high-demand languages. Do not claim Swift has no maintained grammar—defer it provisionally.
     - **Evidence:** Official tree-sitter/tree-sitter-swift README (https://github.com/tree-sitter/tree-sitter-swift): "Status - Abandoned"; redirect/reference to alex-pinkus/experimental-tree-sitter-swift as the active fork.
     - **Catalog impact:** 20 → 19 provisional languages. Catalog remains provisional; final MVP count may be below 19 after remaining grammar/demand audit.
     - **Documentation updated:** PRD.md (catalog table, acceptance criteria, roadmap, executive summary, open decisions, document note); ODD Goal and Decisions coherently reflect the provisional 19-candidate catalog.
-    - **Work-unit commit:** `6155b0e docs: defer Swift from provisional MVP catalog`; documentation verification: `git diff --check` and delegated readback passed. Task 8 remains pending.
+    - **Work-unit commit:** `6155b0e docs: defer Swift from provisional MVP catalog`; documentation verification: `git diff --check` and delegated readback passed. Task 8 was subsequently closed for demand-side catalog closeout (see Task 8).
 12. [x] Define evidence-based grammar evaluation gate for language implementation decisions.
     - **Decision:** During implementation, require reproducibly pinned Rust-compatible grammar integration, evidence of a viable maintained source or alternative, license/security checks, and Astynex-specific fixtures passing the declared tier gate. If no viable maintained grammar can be established, do not implement or advertise the language as MVP-supported yet; reassess later. No arbitrary activity deadline defines maintenance.
-    - **Catalog impact:** 19-candidate catalog preserved; Task 8 remains pending for grammar/demand audit. Implementation-stage acceptance is distinct from candidate audit; final validated release count may be below 19.
-    - **Distinctions:** Catalog audit (Task 8) identifies candidates with dated evidence. Language-specific implementation gates (grammar pinning, fixture authoring, tier passage) happen during development. Do not claim fixture work done before it is; do not assert 19 guaranteed release slots.
+    - **Catalog impact:** 19-candidate catalog preserved; Task 8 closed for demand-side catalog/demand closeout (see Task 8). Implementation-stage acceptance is distinct from Task 8; final validated release count may be below 19.
+    - **Distinctions:** Task 8 records the provisional 19-candidate demand basis; it does not audit grammar maintenance or verify per-language rankings from those sources. Language-specific implementation gates (grammar pinning, fixture authoring, tier passage) happen during development. Do not claim fixture work done before it is; do not assert 19 guaranteed release slots.
     - **Stale-signal guidance:** Temporarily outdated releases or a 404 on one URL does not mean no maintained alternative; evaluate holistically before deferring.
     - **Browsing unaffected:** Deferred languages are not advertised as analysis-supported; users can still open/read their source as text. Highlighting requires its own validated path.
     - **Documentation updated:** PRD.md Section 10 with grammar gate criteria, explicit candidate/implementation distinction, stale-signal guidance, and read-only browsing policy.

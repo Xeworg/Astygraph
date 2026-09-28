@@ -101,7 +101,7 @@ The mockup communicates the product’s differentiator well: source, flow, expla
 ### Project and source browsing
 - **FR-1:** User can select and reopen a local project directory.
 - **FR-2:** Explorer lists directories and supported source files; non-source files can be hidden or de-emphasized.
-- **FR-3:** User can open a file and see line-numbered source. File size limits and behavior must be configurable or documented.
+- **FR-3:** User can open a file and see line-numbered source. Files larger than 1 MiB UTF-8 bytes are openable as text but skip structural parsing with a visible diagnostic; no fabricated structure is produced for oversized files.
 - **FR-4:** Search finds file paths and parsed symbols within the project’s supported scope.
 
 ### Structural analysis and graph
@@ -128,12 +128,16 @@ The mockup communicates the product’s differentiator well: source, flow, expla
 ## 8. Non-functional requirements
 
 - **NFR-1 Privacy:** No source is transmitted without an explicit analysis action and clear disclosure; no telemetry containing source code by default.
-- **NFR-2 Responsiveness:** Project opening, file browsing, parsing, and graph interaction should remain responsive on a documented reference project. Long work must show progress and be cancellable where practical.
+- **NFR-2 Responsiveness:** Project opening, file browsing, parsing, and graph interaction should remain responsive on a documented reference project. The initial discovery ceiling is 50,000 filesystem-path entries per project scan; when reached, stop adding work, report incomplete/limit-reached status, preserve browsing of available entries, and allow configuration changes. Long work must show progress and be cancellable where practical.
 - **NFR-3 Reliability:** Invalid model output and malformed/unsupported source must not crash the application or corrupt project state.
 - **NFR-4 Accessibility:** Core navigation is keyboard-operable; selection and status are not communicated by color alone; text and graph contrast remain usable.
 - **NFR-5 Portability:** Linux and Windows are the initial target platforms; credential-store and packaging differences are handled/documented.
 - **NFR-6 Maintainability:** Parsing, IR, provider/protocol integration, and UI are separable boundaries with testable interfaces.
-- **NFR-7 Resource use:** Memory and CPU behavior are measured against a stated project/file-size envelope, not described as “fast” without evidence.
+- **NFR-7 Resource use:** Memory and CPU behavior are measured against a stated project/file-size envelope (see Open Decision #5), not described as "fast" without evidence. Initial configurable limits are defined as provisional hypotheses pending benchmark measurement against NFR-7:
+  - **Discovery ceiling:** 50,000 filesystem-path entries per project scan (on-demand; stop and report incomplete when reached).
+  - **File parse ceiling:** 1 MiB UTF-8 bytes per file (larger files openable as text; skip structural parse with diagnostic).
+  - **Context ceiling:** selected file/symbol plus at most 5 directly related files and 128 KiB aggregate UTF-8 source text before provider tokenization (deterministic selection; disclose omitted files/bytes).
+  - **Scale-test fixtures:** 1,000 entries (routine integration), 10,000 entries (large-project benchmark), 50,000 entries (stress/manual or non-blocking benchmark). Entry means filesystem path, not supported source file.
 - **NFR-8 Observability:** Application logs are structured, level-based, useful for diagnosing failures, and redacted so source code, secrets, prompts, and sensitive paths are not recorded by default.
 - **NFR-9 Error containment:** Failures in parsing, AI requests, graph rendering, persistence, or other services must not crash the application or destroy the user's current source view. Provider failure disables analysis features but not source browsing.
 - **NFR-10 Testability:** Core analysis, validation, persistence, and provider behavior must be testable without launching the GUI, accessing external networks, or requiring real credentials; provider contracts use deterministic local mocks.
@@ -161,6 +165,10 @@ Prefer a small set of stable boundaries over premature framework breadth:
 - **Diagnostics and observability:** Typed errors at subsystem boundaries, user-actionable diagnostics, and structured logs through a centralized logging setup.
 
 ### Architecture principles
+
+- **On-demand scope:** Analysis is triggered per file/symbol, not by eagerly scanning every project file. Discovery and index are bounded by configurable ceilings. When a ceiling is reached, report incomplete/limit-reached and preserve browsing.
+- **Exclusion rules:** Exclude `.git/`, `.astynex/`, binary/non-text files, and ignored paths from discovery/analysis. Honor `.gitignore` with configurable user overrides. Exclude common generated/build/cache directories by configurable defaults. Exclude obvious secrets from provider context. Do not follow symlinks by default (avoids cycles and directory escape); make following symlinks an explicit future setting only if warranted.
+- **Cancellation:** Implement cancellation for discovery/indexing, parsing, context construction, provider request, and graph construction where practical. Preserve browsing and already-validated/persisted state, maintain DB transaction atomicity, return explicit cancelled/partial status distinct from failure, and report progress for long-running work.
 
 - Keep the domain/IR independent of egui, Tree-sitter implementation details, persistence technology, and provider SDKs.
 - Use explicit boundaries (ports/adapters) for filesystem access, language parsing, AI providers, secure credentials, and persistence; avoid global mutable state and cross-layer shortcuts.
@@ -247,6 +255,17 @@ Swift is temporarily deferred rather than replaced: the old `tree-sitter/tree-si
 
 SQL is included for user value, but its query structure is not represented as function-control-flow parity with general-purpose languages. Each catalog entry must identify whether its grammar covers a programming language, query language, or related source format, and define applicable tests accordingly. Before release, verify the catalog against dated popularity evidence and actual grammar availability/version; Tree-sitter grammar availability alone does not establish product support.
 
+##### Demand basis
+
+The 19 catalog candidates are retained as provisional. Demand evidence is drawn from two dated sources with distinct methodologies:
+
+- **Stack Overflow 2025 Developer Survey** (survey published 2025; survey question, n=31,771 responses; published at https://survey.stackoverflow.co/2025/technology). Developer-reported "extensive use" across surveyed populations.
+- **GitHub Octoverse 2025** (GitHub monthly contributor counts, August 2025 snapshot; TypeScript ranked #1 by contributor count ahead of Python and JavaScript; published at https://github.blog/news-insights/octoverse/octoverse-a-new-developer-joins-github-every-second-as-ai-leads-typescript-to-1/).
+
+These sources use different populations and measurement methods. They inform prioritization of candidate demand, not grammar health or Astynex support. A language's presence here does not validate its Tree-sitter grammar, AST correctness, or suitability for Astynex structural analysis. Grammar verification proceeds through the implementation-stage gate in this section; per-grammar repo/version/license/Rust integration and tier conformance fixtures remain required pre-support gates regardless of demand evidence.
+
+Task 8 (catalog audit) is hereby scoped to this demand-side closeout. The remaining open gate is the grammar evaluation gate below, which evaluates each candidate's maintained grammar, Rust compatibility, license, and Astynex-specific conformance fixtures during implementation. Swift deferral (this section, Task 11) is preserved.
+
 Every language requires a documented grammar and version, a language-specific fixture corpus, declared supported/unsupported constructs, source-mapping checks, and an explicit UI representation of partial analysis. Python and TypeScript are the first vertical slices and must exercise the complete project-to-function-to-graph-to-source journey before the same shared contracts are expanded to the remaining languages.
 
 #### Parser facts and semantic IR boundary
@@ -296,9 +315,9 @@ During implementation, evaluate each candidate grammar before claiming language 
 4. **Conformance fixtures:** Create Astynex-specific fixtures during implementation and pass the declared tier gate, including source mappings and partial/unsupported cases; upstream grammar corpus alone is insufficient.
 
 **Distinguishing candidates from implementable languages:**
-- Task 8 (catalog audit) identifies candidate grammars and their maintenance signals with dated evidence.
-- Language-specific implementation gates—including grammar version pinning, conformance fixture authoring, and tier gate passage—happen during development implementation, not during the candidate audit phase.
-- A candidate language that passes the audit phase may still fail its implementation gate; the 19-candidate catalog does not imply 19 guaranteed release slots.
+- Task 8 (catalog demand closeout) records the provisional 19-candidate catalog with dated demand basis; it does not audit grammar maintenance or verify per-language rankings from those sources. Exact full language rankings are not claimed verified across the demand sources. Per-grammar maintenance signals are evaluated during the implementation gate below.
+- Language-specific implementation gates—including grammar version pinning, conformance fixture authoring, and tier gate passage—happen during development implementation, not during the demand closeout phase.
+- A candidate language that passes the demand closeout may still fail its implementation gate; the 19-candidate catalog does not imply 19 guaranteed release slots.
 
 **Temporarily stale signals:** A single outdated release, a missing website, or a 404 on one URL does not constitute no maintained alternative when other evidence (releases, commits, forks, issue activity) supports continued maintenance. Evaluate holistically before deferring.
 
@@ -348,7 +367,8 @@ Threat model includes accidental source disclosure, secret leakage through promp
 
 Requirements:
 - Remote analysis is opt-in per user action; show provider, endpoint/model, and submitted source/context scope.
-- Exclude obvious secret files and configurable ignored paths from context construction; do not treat this as a guarantee that secrets are absent.
+- Exclude `.git/`, `.astynex/`, binary/non-text files, and ignored paths from discovery/analysis. Honor `.gitignore` with configurable user overrides. Exclude common generated/build/cache directories by configurable defaults. Do not follow symlinks by default (avoids cycles and directory escape). These exclusions do not guarantee secrets are absent; exclude obvious secret patterns from provider context.
+- Configurable ignore overrides let users adjust exclusion rules; defaults cover generated and cache directories.
 - Redact provider credentials from logs/errors and never include them in crash reports.
 - Treat repository content and model responses as untrusted data; impose size/time limits and validate schemas and source mappings. The AI subsystem is analysis-only and cannot write to project files.
 - Document local cache location and provide a clear-data action before persistent caching is introduced.
@@ -357,6 +377,18 @@ Requirements:
 ## 13. Testing strategy
 
 Testing is a product quality requirement from the first implementation, not a late-stage hardening task. Strict RED → GREEN → REFACTOR TDD is the selected development workflow. Before implementation, establish and record the exact runner and configuration; presence of a test runner alone is not evidence that strict TDD is active.
+
+### Scale-envelope test sizes
+
+Scale testing uses deterministic project fixtures to measure discovery, index, and search responsiveness at increasing project sizes. All entries are filesystem paths, not necessarily supported source files:
+
+| Fixture | Entry count | Purpose |
+|---|---|---|
+| Deterministic routine | 1,000 | Routine integration; CI |
+| Deterministic large | 10,000 | Large-project benchmark; CI |
+| Stress/manual | 50,000 | Stress test; non-blocking/manual/nightly only |
+
+Benchmarks record environment/project fixture, path/file/byte counts, p50/p95 wall time, peak memory, and cancellation responsiveness. No latency SLA is defined until measurement against NFR-7. CI uses 1k and bounded 10k cases; 50k is non-blocking/manual/nightly.
 
 ### Test layers
 
@@ -382,6 +414,7 @@ For every implementation work item, follow **RED → GREEN → REFACTOR**: add a
 - Convert low-level errors into user-facing messages at the application boundary. Messages explain what failed, what remains available, and a safe next step; do not expose credentials, raw provider payloads, or stack traces as routine UI copy.
 - Distinguish recoverable failures, partial results, cancellation, configuration errors, and internal/unexpected failures. Unsupported syntax is a diagnostic/partial-analysis condition, not automatically a fatal application error.
 - Preserve unaffected state: a provider failure must not close the source file; a parse failure must not prevent browsing; one failed language adapter must not crash project exploration.
+- Implement cancellation for discovery/indexing, parsing, context construction, provider request, and graph construction where practical: stop scheduling work, preserve browsing and already validated/persisted state, maintain DB transaction atomicity, return explicit cancelled/partial status distinct from failure, and report progress for long-running work.
 - Bound retries, response sizes, file sizes, and execution time. Retry only transient operations when safe, with cancellation and backoff; do not retry validation/authentication failures blindly.
 - Attach stable error/diagnostic codes and correlation/request identifiers where useful. Do not include source text, API keys, prompts, or full model responses in error metadata by default.
 
@@ -456,7 +489,13 @@ These decisions should be resolved before detailed implementation planning:
 2. Which user cohort and sample projects should be prioritized for the comprehension pilot?
 3. Which content invalidation/migration strategy, cache contents, retention/deletion policy, and database location best fit the selected per-project-folder SQLite database (`rusqlite`, `bundled`)? The engine choice is made; these implementation details remain open.
 4. Which specific models and compatible endpoint capabilities pass structured-output, privacy, and error-handling conformance within the selected initial provider families?
-5. Which initial file-size/context limits, ignore rules, and scale-test envelope should be used for on-demand analysis?
+5. ~~Which initial file-size/context limits, ignore rules, and scale-test envelope should be used for on-demand analysis?~~ **Resolved.** Provisional limits defined as hypotheses pending benchmark measurement against NFR-7:
+  - Discovery ceiling: 50,000 filesystem-path entries per project scan; stop and report incomplete when reached.
+  - File parse ceiling: 1 MiB UTF-8 bytes per file; larger files openable as text, skip structural parse with diagnostic.
+  - Context ceiling: selected file/symbol plus at most 5 directly related files and 128 KiB aggregate UTF-8 source text before provider tokenization; disclose omitted files/bytes.
+  - Scale-test fixtures: 1k (routine integration), 10k (large-project benchmark), 50k (stress/manual/nightly).
+  - Exclusions: `.git/`, `.astynex/`, binary/non-text, ignored paths, common generated/build/cache dirs; honor `.gitignore` with configurable overrides; exclude obvious secrets from provider context; do not follow symlinks by default.
+  - Cancellation: required for discovery, parsing, context construction, provider request, and graph construction where practical.
 6. Which measurable pilot criteria should validate product value?
 7. What policy should govern direct third-party code reuse versus independently implementing patterns learned from architecture studies?
 

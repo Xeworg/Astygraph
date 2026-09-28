@@ -1,0 +1,8 @@
+[package]
+name = "astynex"
+version = "0.1.0"
+edition = "2021"
+description = "Astynex: multi-language structural analysis explorer"
+
+[lib]
+path = "src/lib.rs"
