@@ -62,7 +62,7 @@ Define the MVP as a 20-language release with explicit, graduated structural-anal
      - Ollama: structured output including OpenAI-compatible API; test against installed model/version — [Ollama guide](https://docs.ollama.com/capabilities/structured-outputs).
      - OpenAI-compatible and Anthropic-compatible endpoints: support varies by provider; Astynex validates locally and reports unsupported features honestly.
    - PRD updated with provider family table and explicit scope constraints.
-   - Validation: `git diff --check` passed; task 7 complete.
+   - Validation: `git diff --check` passed; delegated contradiction scan passed after correcting the family count. Documentation work-unit commit: `a3dd3ac docs: define initial AI provider families`.
 8. [ ] Validate the 20-language catalog, grammar availability, and tier assignments with dated evidence.
 9. [ ] Define large-project scan limits, exclusions, cancellation, and scale-test envelope.
 10. [ ] Establish workspace and strict TDD runner/configuration.
