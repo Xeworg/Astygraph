@@ -1,10 +1,10 @@
 # Multilanguage MVP Readiness
 
 ## Goal
-Define the MVP as a 20-language release with explicit, graduated structural-analysis coverage and per-language conformance gates. Validate the end-to-end comprehension flow first with Python and TypeScript.
+Define a provisional 19-candidate MVP catalog with explicit, graduated structural-analysis coverage and per-language conformance gates; the release count remains subject to evidence. Validate the end-to-end comprehension flow first with Python and TypeScript.
 
 ## Decisions
-- All 20 selected languages are included in the MVP release; tiers communicate coverage depth, not correctness tolerance.
+- Only candidates retained after dated demand/grammar audit and passing their tier gate are included in the MVP release; tiers communicate coverage depth, not correctness tolerance.
 - Python and TypeScript are the initial vertical-slice languages.
 - Every tier must preserve source mapping, avoid fabricated structure, and communicate unsupported/partial analysis.
 - Each language requires versioned grammar metadata and language-specific fixtures against common conformance expectations.
@@ -63,9 +63,16 @@ Define the MVP as a 20-language release with explicit, graduated structural-anal
      - OpenAI-compatible and Anthropic-compatible endpoints: support varies by provider; Astynex validates locally and reports unsupported features honestly.
    - PRD updated with provider family table and explicit scope constraints.
    - Validation: `git diff --check` passed; delegated contradiction scan passed after correcting the family count. Documentation work-unit commit: `a3dd3ac docs: define initial AI provider families`.
-8. [ ] Validate the 20-language catalog, grammar availability, and tier assignments with dated evidence.
+8. [ ] Validate the provisional 19-candidate catalog, grammar availability, and tier assignments with dated evidence.
+    - **Note:** Catalog is provisional; Swift is deferred pending grammar validation (see Task 11). Final validated language count may be below 19 after grammar/demand audit.
 9. [ ] Define large-project scan limits, exclusions, cancellation, and scale-test envelope.
 10. [ ] Establish workspace and strict TDD runner/configuration.
+11. [x] Scope change: remove Swift from MVP catalog pending grammar validation.
+    - **Decision:** Swift is deferred from the 19-language catalog rather than replaced. The old tree-sitter/tree-sitter-swift README states 'Status - Abandoned' and links to alex-pinkus/experimental-tree-sitter-swift as an alternative. A replacement grammar exists (alex-pinkus/tree-sitter-swift) but its Tier 2 Astynex conformance has not been validated.
+    - **Rationale:** User explicitly chose to temporarily remove languages with abandoned grammars from MVP rather than replace to maintain count, prioritizing high-demand languages. Do not claim Swift has no maintained grammar—defer it provisionally.
+    - **Evidence:** Official tree-sitter/tree-sitter-swift README (https://github.com/tree-sitter/tree-sitter-swift): "Status - Abandoned"; redirect/reference to alex-pinkus/experimental-tree-sitter-swift as the active fork.
+    - **Catalog impact:** 20 → 19 provisional languages. Catalog remains provisional; final MVP count may be below 19 after remaining grammar/demand audit.
+    - **Documentation updated:** PRD.md (catalog table, acceptance criteria, roadmap, executive summary, open decisions, document note); ODD Goal and Decisions coherently reflect 19-language provisional catalog.
 
 ## Evidence
 - PRD update is the deliverable; no source implementation or tests are part of this documentation task.

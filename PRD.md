@@ -10,7 +10,7 @@ Astynex is a local-first desktop application, initially developed privately by t
 
 Its central hypothesis is that a developer can understand real code faster and with better source traceability using a linked visual explanation than by reading source alone. A configured AI provider analyzes the opened file or selected symbol and returns structured analysis; Astynex validates that result and renders it as native graph elements, not generated images. AI must never modify source files. Schema and source references are validated; unsupported or unmappable claims are rejected or shown as uncertain rather than silently trusted.
 
-The MVP should prove this comprehension loop across a selected catalog of 20 widely used programming languages, with availability in all three validated tiers at MVP release. Coverage depth will differ by language and tier; equal completeness is not promised. Validate the end-to-end comprehension experience first with Python and TypeScript, then extend the shared conformance gates and tiered coverage across the catalog.
+The MVP should prove this comprehension loop across a provisional catalog of 19 candidate programming languages across three coverage tiers. The catalog is provisional pending grammar and demand audit; the final validated language count may be below 19. Coverage depth will differ by language and tier; equal completeness is not promised. Validate the end-to-end comprehension experience first with Python and TypeScript, then extend the shared conformance gates and tiered coverage across the catalog.
 
 ## 2. Problem and opportunity
 
@@ -71,7 +71,7 @@ The product is initially developed privately by the project team; this developme
 - RAG, vector databases, cloud project storage, collaboration, or account systems.
 - Eager analysis of every project file, a whole-project graph, or complete repository semantic indexing.
 - Claims of complete call/data-flow analysis across dynamic dispatch, reflection, macros, or unresolved dependencies.
-- Equal-depth or compiler-grade analysis across all 20 languages. The MVP includes every selected language with explicitly tiered coverage, documented limitations, and language-specific acceptance gates.
+- Equal-depth or compiler-grade analysis across all catalog languages. The MVP includes every selected language with explicitly tiered coverage, documented limitations, and language-specific acceptance gates.
 - A large built-in provider catalog or parity with every model vendor in the MVP; the architecture should permit broad provider additions over time.
 - Whole-project/cross-project graphs and unrestricted cross-file algorithm graphs; MVP context is limited to directly related files/symbols for the opened file or selection.
 
@@ -215,7 +215,7 @@ Keep parser-derived facts and AI-generated semantic interpretations distinguisha
 
 ## 10. Language and parser strategy
 
-The MVP includes a selected catalog of 20 widely used programming languages, organized into three validated coverage tiers. All 20 must be available in the MVP release, but they are not required to have equal structural-analysis depth. Tier labels describe the supported construct coverage and user-visible limitations; they never relax correctness, source mapping, or the requirement not to fabricate analysis.
+The MVP currently proposes 19 candidate programming languages, organized into three coverage tiers. Catalog entries are provisional pending grammar and demand audit; the final validated language count may be below 19. Languages are not required to have equal structural-analysis depth. Tier labels describe the supported construct coverage and user-visible limitations; they never relax correctness, source mapping, or the requirement not to fabricate analysis.
 
 Use a dated comparison of credible popularity sources (such as developer surveys and public code-hosting language data) alongside product readiness: grammar maturity, Tree-sitter integration quality, construct coverage, representative test corpora, and target-user demand. Record the snapshot date and selection method, and reassess the catalog at roadmap checkpoints. The following is the initial candidate catalog, not a claim of definitive or permanently ordered popularity:
 
@@ -223,8 +223,10 @@ Use a dated comparison of credible popularity sources (such as developer surveys
 |---|---|---|
 | Validation vertical slices | Python, TypeScript | First end-to-end validation; Python for readable control flow and TypeScript for typed and asynchronous web code. These are validation priorities, not a separate coverage promise. |
 | Tier 1 — broad general-purpose coverage | JavaScript, Java, C#, Go | Widely used application and service ecosystems; establish robust core structural analysis. |
-| Tier 2 — ecosystem and systems breadth | C, C++, PHP, Ruby, Kotlin, Swift, Rust | Systems, web, and mobile code; document language-specific constructs and limits. |
+| Tier 2 — ecosystem and systems breadth | C, C++, PHP, Ruby, Kotlin, Rust | Systems, web, and mobile code; document language-specific constructs and limits. |
 | Tier 3 — focused coverage | SQL, Bash, Dart, Scala, Lua, Elixir, R | Data/query, scripting, mobile, and selected application ecosystems; scope supported constructs explicitly. |
+
+Swift is temporarily deferred rather than replaced: the old `tree-sitter/tree-sitter-swift` grammar declares itself abandoned, while the alternative grammar has not passed Astynex's Tier 2 conformance gate. Reconsider Swift after the grammar and demand audit; do not infer that no maintained grammar exists.
 
 SQL is included for user value, but its query structure is not represented as function-control-flow parity with general-purpose languages. Each catalog entry must identify whether its grammar covers a programming language, query language, or related source format, and define applicable tests accordingly. Before release, verify the catalog against dated popularity evidence and actual grammar availability/version; Tree-sitter grammar availability alone does not establish product support.
 
@@ -344,7 +346,7 @@ If telemetry is ever added, make it opt-in, document event fields, and never col
 
 A candidate MVP is acceptable when:
 1. A user can open a local project, browse to a supported file, and read its source without configuring an AI provider.
-2. All 20 catalog languages are available in the MVP, each assigned a coverage tier whose required conformance gate passes.
+2. Every language retained in the final audited MVP catalog is available, assigned a coverage tier, and passes its required conformance gate; deferred candidates are not advertised as supported.
 3. Python and TypeScript pass the end-to-end file/symbol-to-analysis-to-native-graph-to-source validation before the remaining languages are accepted.
 4. AI analyzes the opened file or selected applicable symbol plus explicitly scoped directly related context; Astynex validates the structured result and renders an interactive graph with verifiable source mappings.
 5. Provider-unavailable states preserve project/file/source browsing but disable analysis, AI explanation, and graph-generation features; Ollama works as the offline AI option when installed/configured.
@@ -365,7 +367,7 @@ A candidate MVP is acceptable when:
 | AI output varies or is malformed | Unreliable UX and broken graphs | Versioned schema, strict validation, deterministic fallback |
 | Remote code disclosure surprises users | Privacy harm and loss of trust | Explicit per-action disclosure, directly-related-context preview, Ollama offline option, no source transmission before user action |
 | Provider abstraction expands prematurely | Maintenance burden delays core value | Implement the smallest useful integration set; separate concepts without building a marketplace |
-| Language scope is too broad | Shallow support and fragile parser behavior | Include 20 languages in the MVP with graduated tier gates; validate Python and TypeScript first, require per-language conformance fixtures, documented limits, and no unsupported claims |
+| Language scope is too broad | Shallow support and fragile parser behavior | Include selected languages in the MVP with graduated tier gates; validate Python and TypeScript first, require per-language conformance fixtures, documented limits, and no unsupported claims |
 | Provider breadth outpaces quality | Inconsistent errors, capabilities, or privacy behavior across integrations | Stable protocol boundaries, shared contract tests, representative integrations first, and provider-specific capability declarations |
 | Studied upstream code is reused without adequate review | Attribution, license, or maintenance obligations are missed | Verify repository/version/license and notices before any code reuse; keep architecture study distinct from source reuse |
 | Local model performance is poor | Offline analysis is slow or unusable | Treat Ollama inference as an explicitly tested capability; document hardware/model requirements and retain source browsing when unavailable |
@@ -373,7 +375,7 @@ A candidate MVP is acceptable when:
 ## 18. Roadmap hypothesis
 
 1. **Discovery/prototype:** Validate function-level source ↔ flow interaction and language choice with representative code.
-2. **MVP:** Linux/Windows project and source browsing; on-demand AI analysis of an opened file/selected symbol with directly related context; validated native interactive graph and explanation; per-folder incremental persistence; required AI provider with Ollama as offline option; and a small extensible provider set. Source reading remains available without a provider. Include all 20 languages at graduated, tested coverage tiers; validate Python and TypeScript end to end first and satisfy the declared gate for each remaining language.
+2. **MVP:** Linux/Windows project and source browsing; on-demand AI analysis of an opened file/selected symbol with directly related context; validated native interactive graph and explanation; per-folder incremental persistence; required AI provider with Ollama as offline option; and a small extensible provider set. Source reading remains available without a provider. Include validated languages at graduated, tested coverage tiers; validate Python and TypeScript end to end first and satisfy the declared gate for each remaining language.
 3. **Hardening:** Usability/accessibility, performance envelope, cache decisions, provider contract tests, and reliability improvements based on evidence across the supported language tiers.
 4. **Post-MVP expansion:** Improve construct coverage and tier placement, then consider call-graph and cross-file navigation with explicit completeness limits, dependency/project graphs, data-flow views, and richer local inference where validated demand supports them.
 
@@ -382,10 +384,10 @@ This is a sequence of hypotheses, not a commitment to deliver every phase.
 ## 19. Open product decisions
 
 These decisions should be resolved before detailed implementation planning:
-1. Which dated popularity sources and language-readiness criteria should periodically refresh the 20-language MVP catalog?
+1. Which dated popularity sources and language-readiness criteria should periodically refresh the language catalog?
 2. Which user cohort and sample projects should be prioritized for the comprehension pilot?
 3. Which content invalidation/migration strategy, cache contents, retention/deletion policy, and database location best fit the selected per-project-folder SQLite database (`rusqlite`, `bundled`)? The engine choice is made; these implementation details remain open.
-4. Which remote AI provider/protocol should join Ollama in the minimum MVP integration set?
+4. Which specific models and compatible endpoint capabilities pass structured-output, privacy, and error-handling conformance within the selected initial provider families?
 5. Which initial file-size/context limits, ignore rules, and scale-test envelope should be used for on-demand analysis?
 6. Which measurable pilot criteria should validate product value?
 7. What policy should govern direct third-party code reuse versus independently implementing patterns learned from architecture studies?
@@ -404,7 +406,7 @@ The following are important because they reduce product risk, not because they a
 8. **Keep cache and telemetry decisions explicit.** Source-derived artifacts can be sensitive even when stored locally; specify retention and deletion before persistence.
 9. **Separate source facts from AI semantic analysis.** Tree-sitter is not a compiler or whole-program analyzer; validate AI-produced graph data against source and communicate what is known, inferred, or uncertain.
 10. **Prototype before committing to the entire UI stack.** Verify that the chosen graph widget can support selection, source synchronization, graph scale, and accessible navigation in the target desktop framework.
-11. **Ship broad language availability without promising uniform depth.** Include a transparently ranked 20-language catalog in the MVP, validate Python and TypeScript end to end first, and require every language to pass an explicit tier gate and source-mapping fixtures; AI familiarity or grammar availability is not proof of reliable structural analysis.
+11. **Ship broad language availability without promising uniform depth.** Include a transparently ranked language catalog in the MVP, validate Python and TypeScript end to end first, and require every language to pass an explicit tier gate and source-mapping fixtures; AI familiarity or grammar availability is not proof of reliable structural analysis.
 12. **Make provider extensibility a first-class architecture concern.** Study proven multi-provider systems, keep provider/protocol/model boundaries explicit, and validate integrations with shared contract tests; broad support should not mean unchecked integration count.
 13. **Separate architecture learning from code reuse.** Study OpenCode as an engineering reference, but review the exact upstream repository/version/license before any direct source reuse and record provenance for reused components.
 14. **Make strict TDD, errors, and observability foundational.** Use RED-GREEN-REFACTOR from the first implementation, define language conformance fixtures, typed subsystem errors, graceful degradation, and privacy-safe structured logging.
@@ -412,4 +414,4 @@ The following are important because they reduce product risk, not because they a
 
 ---
 
-**Document note:** This PRD consolidates the supplied concept and interface reference into a testable product direction. Confirmed product constraints include Linux and Windows targets, on-demand file/symbol analysis with directly related context, AI-required analysis and native software-rendered graphs, source-read access without a provider, no AI file modification, per-folder incremental persistence, and strict TDD. The 20-language catalog and tiers remain subject to dated popularity/grammar validation; persistence technology, initial remote provider set, scale envelope, and usability thresholds remain to be validated.
+**Document note:** This PRD consolidates the supplied concept and interface reference into a testable product direction. Confirmed product constraints include Linux and Windows targets, on-demand file/symbol analysis with directly related context, AI-required analysis and native software-rendered graphs, source-read access without a provider, no AI file modification, per-folder incremental persistence, and strict TDD. The language catalog (currently 19 provisional entries) remains subject to grammar and demand audit; the final validated language count may be below 19. SQLite via bundled `rusqlite`, the file-oriented cache policy, and initial provider families are selected; exact invalidation/migration, scale envelope, and usability thresholds remain to be validated.
