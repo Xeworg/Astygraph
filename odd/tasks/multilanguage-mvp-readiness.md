@@ -81,7 +81,7 @@ Define a provisional 19-candidate MVP catalog with explicit, graduated structura
     - **Stale-signal guidance:** Temporarily outdated releases or a 404 on one URL does not mean no maintained alternative; evaluate holistically before deferring.
     - **Browsing unaffected:** Deferred languages are not advertised as analysis-supported; users can still open/read their source as text. Highlighting requires its own validated path.
     - **Documentation updated:** PRD.md Section 10 with grammar gate criteria, explicit candidate/implementation distinction, stale-signal guidance, and read-only browsing policy.
-    - **Validation:** `git diff --check` passed; no unrelated edits, no renumbering of existing tasks, Swift deferral preserved.
+    - **Validation:** `git diff --check` and delegated readback passed; Swift deferral preserved. Work-unit commit: `14733e5 docs: gate MVP languages on maintained grammars`.
 
 ## Evidence
 - PRD update is the deliverable; no source implementation or tests are part of this documentation task.
