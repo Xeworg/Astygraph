@@ -15,7 +15,7 @@ Define the MVP as a 20-language release with explicit, graduated structural-anal
 - AI must never modify source files. Its structured output and source references must be validated before rendering.
 - Ollama is the offline AI option; offline AI requires Ollama to be installed/configured and available.
 - Use strict RED-GREEN-REFACTOR TDD.
-- Persistence is a local database per project folder, incrementally populated as files are analyzed; database technology remains open for research.
+- Persistence uses one local SQLite database per project folder, incrementally populated as files are analyzed, accessed from Rust through `rusqlite` with the `bundled` feature. Store graph nodes and edges relationally and use recursive CTEs for bounded traversal. Cache contents, invalidation, migrations, retention, and deletion details remain open until specified before implementation.
 - Scale strategy is on-demand analysis of opened/related files, not a full-project eager scan; exact limits remain for measurement.
 - The provided UI image is directional; its project-wide graph is not MVP scope.
 
@@ -26,7 +26,13 @@ Define the MVP as a 20-language release with explicit, graduated structural-anal
 4. [x] Update PRD with the newly confirmed platform, AI, graph, persistence, and TDD product constraints.
    - Evidence: PRD reflects Linux/Windows; private development without narrowing intended user groups; on-demand analysis of opened file/symbol plus direct context; local dependency graph rather than whole-project graph; AI structured analysis validated and rendered natively; no image generation or AI file modification; source browsing without a provider while analysis/graph require one; Ollama offline option; per-folder incremental persistence pending technology research; strict RED-GREEN-REFACTOR with runner setup pending.
    - Validation: `git diff --check` passed; targeted contradiction scan/readback confirmed the intended provider-unavailable, graph-scope, source-write, and TDD constraints. Independent subagent verification unavailable because worktree registration failed.
-5. [ ] Research and decide scalable per-folder incremental persistence.
+5. [x] Research and select the engine direction for scalable per-folder incremental persistence.
+   - Decision: SQLite through Rust `rusqlite` with the `bundled` feature; relational node/edge tables and recursive CTEs for bounded MVP graph traversal.
+   - Rationale: SQLite officially supports recursive graph/tree queries and WAL; `rusqlite`'s bundled feature includes SQLite and avoids relying on the system SQLite installation. The MVP graph is bounded to opened files/symbols and directly related context.
+   - Alternatives reviewed: SQLite graph extensions (no suitable specific extension established); embedded graph stores, including `sqlitegraph` (GPL-3.0-only and single-maintainer posture are material tradeoffs; not selected).
+   - Remaining before implementation: define cached payloads, fingerprint/invalidation scope, migration mechanism, retention/deletion and cache location; validate durability/configuration and test behavior on Linux and Windows.
+   - Evidence: SQLite recursive CTE graph traversal ([SQLite WITH](https://www.sqlite.org/lang_with.html)); WAL behavior and same-host constraint ([SQLite WAL](https://www.sqlite.org/wal.html)); `rusqlite` bundled feature ([docs.rs](https://docs.rs/crate/rusqlite/latest)).
+   - Commit: `9d25092 docs: select rusqlite for graph persistence`.
 6. [ ] Study OpenCode provider architecture and define initial AI-provider scope without adding OpenCode as dependency or copying code.
 7. [ ] Validate the 20-language catalog, grammar availability, and tier assignments with dated evidence.
 8. [ ] Define large-project scan limits, exclusions, cancellation, and scale-test envelope.

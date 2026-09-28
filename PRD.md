@@ -148,7 +148,7 @@ Prefer a small set of stable boundaries over premature framework breadth:
 - **Analysis core:** AI request/context orchestration, structured-result validation, provenance, cancellation, and diagnostics.
 - **Astynex IR:** UI-independent, versioned representation of AI analysis, validated nodes/edges, source spans, uncertainty, and annotations.
 - **AI boundary:** Required provider registry, protocol adapters, model capabilities, credential references, request policy, structured-output validation, and Ollama support for offline use.
-- **Persistence:** One local database associated with each project folder, incrementally updated as files are analyzed; database technology and invalidation/migration strategy are selected after research.
+- **Persistence:** One local SQLite database associated with each project folder, incrementally updated as files are analyzed. Use Rust `rusqlite` with its `bundled` feature and relational node/edge tables; use recursive CTEs for bounded graph traversal. Content invalidation, migration strategy, cache contents, retention, and deletion details remain to be specified before implementation.
 - **Visualization adapters:** Render only validated IR as native interactive graph elements; never treat generated images or UI widgets as canonical analysis data.
 - **Diagnostics and observability:** Typed errors at subsystem boundaries, user-actionable diagnostics, and structured logs through a centralized logging setup.
 
@@ -242,7 +242,7 @@ All tiers must pass shared safety and integrity gates: no crash on malformed/uns
 - Use OpenCode and other relevant open-source projects as architecture study references for provider breadth and integration patterns. Rust implementation should be designed for Astynex's requirements; any direct reuse of third-party source is a separate, explicit engineering and license-review decision, not implied by architectural study.
 - AI analysis is required for analysis/explanation/graph features. Ollama is the supported offline option and must be installed/configured and available; remote providers require explicit code-context disclosure and user action. Never claim code stays local when a remote endpoint is configured.
 - Credentials belong in OS-backed secure storage where available. Configuration files may store non-secret provider settings and secret references, never raw secrets by default.
-- Persistence policy must specify what is cached (parse facts, AI analysis, graph-ready IR), per-folder database location, content fingerprint/invalidation, schema migration, retention/deletion, and whether prompts/responses contain source. Resolve these details in the persistence research task before implementation.
+- Persistence policy must specify what is cached (parse facts, AI analysis, graph-ready IR), per-folder database location, content fingerprint/invalidation, schema migration, retention/deletion, and whether prompts/responses contain source. The selected engine direction is SQLite through Rust `rusqlite` with `bundled`; resolve the remaining policy details before implementation.
 
 ## 12. Privacy and security
 
@@ -356,7 +356,7 @@ This is a sequence of hypotheses, not a commitment to deliver every phase.
 These decisions should be resolved before detailed implementation planning:
 1. Which dated popularity sources and language-readiness criteria should periodically refresh the 20-language MVP catalog?
 2. Which user cohort and sample projects should be prioritized for the comprehension pilot?
-3. Which persistence technology and content invalidation/migration strategy best fit one incrementally populated database per project folder?
+3. Which content invalidation/migration strategy, cache contents, retention/deletion policy, and database location best fit the selected per-project-folder SQLite database (`rusqlite`, `bundled`)? The engine choice is made; these implementation details remain open.
 4. Which remote AI provider/protocol should join Ollama in the minimum MVP integration set?
 5. Which initial file-size/context limits, ignore rules, and scale-test envelope should be used for on-demand analysis?
 6. Which measurable pilot criteria should validate product value?
