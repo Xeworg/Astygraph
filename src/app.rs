@@ -57,16 +57,22 @@ impl AstynexApp {
             return;
         }
 
-        // Draw as a stroked path in the current text color.
+        // Reserve a widget rectangle so the path is translated from SVG-local
+        // coordinates into the current egui layout instead of being painted at
+        // the window origin.
+        let (rect, _response) =
+            ui.allocate_exact_size(egui::vec2(size, size), egui::Sense::hover());
+        let path_pts = path_pts
+            .into_iter()
+            .map(|point| egui::pos2(rect.left() + point.x, rect.top() + point.y))
+            .collect();
+
         let stroke = ui.style().visuals.text_color();
         let shape = egui::Shape::Path(egui::epaint::PathShape::line(
             path_pts,
             egui::Stroke::new(icons::STROKE_WIDTH, stroke),
         ));
         ui.painter().add(shape);
-
-        // Advance cursor horizontally.
-        ui.set_min_size([size + 4.0, ui.min_size().y].into());
     }
 }
 
