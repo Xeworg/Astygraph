@@ -29,8 +29,12 @@ Organize the desktop shell toolbar so users can open or switch projects from any
    - Independent verification: no blockers; confirmed modal behavior against egui 0.36, radio/apply event ordering, folder replacement behavior, and translations. `cargo doc` retains two pre-existing redundant-link warnings in `src/app.rs` lines 3–4.
    - Native review: candidate review capture escalated with `native_stop_required`; no reviewer verdict or approval was produced. Do not treat the candidate as approved.
    - Work-unit commit: `b2543a5 feat: add toolbar and language selection dialog`.
-3. [ ] Independently verify and close the feature.
+3. [x] Independently verify and close the feature.
    - Acceptance: focused and full tests, formatting and diff checks pass; report GUI smoke status; record work-unit commits and evidence here.
+   - Final verification: `cargo test --workspace --all-targets` — 124 passed, 0 failed; `cargo fmt --all -- --check` — passed; `git diff --check` — passed. Work-unit commits `96f55ba` and `b2543a5` confirmed in git.
+   - Repository status: tracked tree clean; pre-existing `.codegraph/` and `.vscode/` remain untracked and untouched.
+   - GUI manual smoke and Windows execution were not exercised.
+   - Native review remains escalated with `native_stop_required`; no reviewer verdict or approval was produced. This is not delivery approval.
 
 ## Evidence
 - Initial UI exploration and read-only scout: `src/app.rs` currently renders a standalone locale toggle at the top and only renders Open Folder in `Idle`. `AppState::open_folder()` is a no-op from `Loaded`; picker cancellation from Loading returns to Idle.
