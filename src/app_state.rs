@@ -4,6 +4,8 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::i18n::Locale;
+
 /// Folder-selection sub-state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FolderState {
@@ -32,13 +34,29 @@ pub enum FolderState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AppState {
     pub folder_state: FolderState,
+    /// Active UI locale.
+    pub locale: Locale,
 }
 
 impl Default for AppState {
     fn default() -> Self {
         Self {
             folder_state: FolderState::Idle,
+            locale: Locale::En,
         }
+    }
+}
+
+impl AppState {
+    /// Set the UI locale.
+    #[must_use]
+    pub fn with_locale(self, locale: Locale) -> Self {
+        Self { locale, ..self }
+    }
+
+    /// Current UI locale.
+    pub fn locale(&self) -> Locale {
+        self.locale
     }
 }
 
@@ -51,6 +69,7 @@ impl AppState {
         match &self.folder_state {
             FolderState::Idle => Self {
                 folder_state: FolderState::Loading,
+                locale: self.locale,
             },
             // Guard: no-op from any other state
             FolderState::Loading | FolderState::Loaded { .. } => self.clone(),
@@ -79,6 +98,7 @@ impl AppState {
                     }
                     None => FolderState::Idle,
                 },
+                locale: self.locale,
             },
             // Guard: no-op from any other state
             FolderState::Idle | FolderState::Loaded { .. } => self.clone(),
@@ -147,6 +167,7 @@ impl AppState {
                 entries: new_entries,
                 selected_file: None,
             },
+            locale: self.locale,
         }
     }
 
@@ -191,6 +212,7 @@ impl AppState {
                 entries: new_entries,
                 selected_file: None,
             },
+            locale: self.locale,
         }
     }
 
@@ -229,6 +251,7 @@ impl AppState {
                 entries: new_entries,
                 selected_file: None,
             },
+            locale: self.locale,
         }
     }
 
@@ -249,6 +272,7 @@ impl AppState {
                     entries: entries.clone(),
                     selected_file: selected,
                 },
+                locale: self.locale,
             },
             FolderState::Idle | FolderState::Loading => self.clone(),
         }
@@ -261,6 +285,7 @@ impl AppState {
         match &self.folder_state {
             FolderState::Loaded { .. } => Self {
                 folder_state: FolderState::Idle,
+                locale: self.locale,
             },
             FolderState::Idle | FolderState::Loading => self.clone(),
         }

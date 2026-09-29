@@ -27,8 +27,12 @@ Deliver the first usable native desktop slice, prioritizing essential project/so
    - GREEN: `cargo test --workspace --all-targets` passed with 53 tests; `cargo fmt --all -- --check` and `git diff --check` passed.
    - Review: independent verification confirmed nested drill-down, safe parent/sibling/traversal and symlink guards, viewer error/large-file behavior, exclusions, and bounded discovery. Manual GUI smoke and Windows execution were not exercised.
    - Work-unit commit: `6e0b9c7 feat: add safe project navigation and code viewer`.
-3. [ ] Add Spanish/English localization and Heroicons outline assets.
+3. [x] Add Spanish/English localization and Heroicons outline assets.
    - Acceptance: all user-visible shell/browser/viewer strings use translation keys; users can switch between Spanish and English; essential actions and file/folder types use Heroicons outline SVGs; retain the MIT license notice and test locale fallback/key coverage.
+   - GREEN: `cargo test --workspace --all-targets` passed with 91 tests; `cargo fmt --all -- --check` and `git diff --check` passed.
+   - Implementation: `src/i18n/mod.rs` — `Locale` enum (En/Es), `I18n` struct with binary-search lookup, silent fallback, positional args; 16 keys per locale. `src/icons/mod.rs` — `Icon` enum (Folder, FolderOpen, Document, Link, ArrowUp, XMark) with inline Heroicons outline SVG path data, `parse_path()` converting SVG path strings to `egui::Pos2` for `Shape::Path` rendering, MIT license as doc comment. `src/app_state.rs` — added `locale: Locale` field, propagated through all state transitions. `src/app.rs` — replaced all hardcoded strings with `i18n.t("key")` / `i18n.t_args(...)`, replaced `[DIR]/[LINK]` prefixes with SVG icon rendering via `draw_icon()`, added locale toggle button `[EN]/[ES]`. `src/icons/heroicons_license.txt` — full MIT license text. `Cargo.toml` — added `egui = "0.36"` as direct dependency. `tests/i18n_icons.rs` — 19 headless tests covering locale switching, fallback, key coverage in both locales, icon path validity, path parsing, and locale preservation during folder operations. The picker title is localized and the SVG parser handles absolute/relative arcs and negative coordinates.
+   - Independent verification found no blockers; manual GUI smoke and Windows execution were not exercised.
+   - Work-unit commit: `b6cf59c feat: add localized heroicons desktop UI`.
 4. [ ] Establish a UI-independent graph-view model boundary.
    - Acceptance: define only the minimal node/edge/document types needed to accept future graph data; no fake data, graph widget, AI, or parser logic; compile-time/unit tests cover basic model invariants without coupling it to egui.
 5. [ ] Verify the complete slice and record evidence.

@@ -95,6 +95,7 @@ name = "astynex"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "egui",
  "globset",
  "ignore",
  "rfd",
