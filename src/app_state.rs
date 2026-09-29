@@ -34,8 +34,16 @@ pub enum FolderState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AppState {
     pub folder_state: FolderState,
-    /// Active UI locale.
+    /// Active UI locale (committed/active).
     pub locale: Locale,
+    /// Whether the locale selection dialog is open.
+    locale_dialog_open: bool,
+    /// Pending locale draft (None when dialog is closed).
+    pending_locale: Option<Locale>,
+    /// Previous folder state snapshot — stored before entering `Loading` so that
+    /// cancellation can restore the original state (e.g. preserving a loaded
+    /// folder when replacing it).
+    previous_folder_state: Option<FolderState>,
 }
 
 impl Default for AppState {
@@ -43,6 +51,9 @@ impl Default for AppState {
         Self {
             folder_state: FolderState::Idle,
             locale: Locale::En,
+            locale_dialog_open: false,
+            pending_locale: None,
+            previous_folder_state: None,
         }
     }
 }
@@ -58,34 +69,119 @@ impl AppState {
     pub fn locale(&self) -> Locale {
         self.locale
     }
+
+    /// Whether the locale dialog is currently open.
+    #[must_use]
+    pub fn is_locale_dialog_open(&self) -> bool {
+        self.locale_dialog_open
+    }
+
+    /// Current pending locale draft (None if dialog is closed).
+    #[must_use]
+    pub fn pending_locale(&self) -> Option<Locale> {
+        self.pending_locale
+    }
+}
+
+impl AppState {
+    /// Open the locale selection dialog.
+    ///
+    /// Initializes the pending draft with the current active locale.
+    /// If dialog is already open, returns self (no-op).
+    #[must_use]
+    pub fn open_locale_dialog(&self) -> Self {
+        if self.locale_dialog_open {
+            return self.clone();
+        }
+        Self {
+            locale_dialog_open: true,
+            pending_locale: Some(self.locale),
+            ..self.clone()
+        }
+    }
+
+    /// Draft/preview a locale selection (does not commit).
+    ///
+    /// Only valid when dialog is open. No-op otherwise.
+    #[must_use]
+    pub fn draft_locale(&self, locale: Locale) -> Self {
+        if !self.locale_dialog_open {
+            return self.clone();
+        }
+        Self {
+            pending_locale: Some(locale),
+            ..self.clone()
+        }
+    }
+
+    /// Apply the pending locale draft and close the dialog.
+    ///
+    /// Commits `pending_locale` to `locale`. If no pending change (same as active),
+    /// still closes the dialog. No-op if dialog is closed.
+    #[must_use]
+    pub fn apply_locale(&self) -> Self {
+        if !self.locale_dialog_open {
+            return self.clone();
+        }
+        let new_locale = self.pending_locale.unwrap_or(self.locale);
+        Self {
+            locale: new_locale,
+            locale_dialog_open: false,
+            pending_locale: None,
+            ..self.clone()
+        }
+    }
+
+    /// Cancel locale selection and close the dialog.
+    ///
+    /// Discards the pending draft. Active locale remains unchanged.
+    /// No-op if dialog is already closed.
+    #[must_use]
+    pub fn cancel_locale(&self) -> Self {
+        if !self.locale_dialog_open {
+            return self.clone();
+        }
+        Self {
+            locale_dialog_open: false,
+            pending_locale: None,
+            ..self.clone()
+        }
+    }
 }
 
 impl AppState {
     /// Request opening the native folder picker.
     ///
-    /// Valid from `Idle` only. Returns `Loading`.
-    /// From any other state, returns `self` unchanged (no-op guard).
+    /// Valid from `Idle` and `Loaded`. Returns `Loading` and snapshots the
+    /// current folder state so cancellation can restore it.
+    /// From `Loading`, returns `self` unchanged (no-op guard).
     pub fn open_folder(&self) -> Self {
         match &self.folder_state {
-            FolderState::Idle => Self {
+            FolderState::Idle | FolderState::Loaded { .. } => Self {
                 folder_state: FolderState::Loading,
                 locale: self.locale,
+                locale_dialog_open: self.locale_dialog_open,
+                pending_locale: self.pending_locale,
+                // Snapshot current state for cancellation restore
+                previous_folder_state: Some(self.folder_state.clone()),
             },
-            // Guard: no-op from any other state
-            FolderState::Loading | FolderState::Loaded { .. } => self.clone(),
+            // Guard: no-op from Loading
+            FolderState::Loading => self.clone(),
         }
     }
 
     /// Handle the result of the native folder picker.
     ///
     /// `Some(path)` — selection confirmed; transitions to `Loaded` with scanned entries.
-    /// `None`       — user cancelled or picker error; returns to `Idle`.
+    /// `None`       — user cancelled; restores `previous_folder_state`:
+    ///                 - From Idle → Idle
+    ///                 - From Loaded → Loaded (preserves previous folder)
     ///
     /// Only valid from `Loading`. From `Idle` or `Loaded`, this is a no-op.
     pub fn on_folder_selected(&self, path: Option<PathBuf>) -> Self {
         match &self.folder_state {
-            FolderState::Loading => Self {
-                folder_state: match path {
+            FolderState::Loading => {
+                let folder_state = match path {
                     Some(p) => {
                         // Scan the directory; empty vec on error is handled by UI
                         let entries = crate::fs::scan_dir(&p).unwrap_or_default();
@@ -96,10 +192,21 @@ impl AppState {
                             selected_file: None,
                         }
                     }
-                    None => FolderState::Idle,
-                },
-                locale: self.locale,
-            },
+                    // Cancellation: restore previous state if available
+                    None => self
+                        .previous_folder_state
+                        .clone()
+                        .unwrap_or(FolderState::Idle),
+                };
+                Self {
+                    folder_state,
+                    locale: self.locale,
+                    locale_dialog_open: self.locale_dialog_open,
+                    pending_locale: self.pending_locale,
+                    // Clear snapshot after use
+                    previous_folder_state: None,
+                }
+            }
             // Guard: no-op from any other state
             FolderState::Idle | FolderState::Loaded { .. } => self.clone(),
         }
@@ -168,6 +275,9 @@ impl AppState {
                 selected_file: None,
             },
             locale: self.locale,
+            locale_dialog_open: self.locale_dialog_open,
+            pending_locale: self.pending_locale,
+            previous_folder_state: self.previous_folder_state.clone(),
         }
     }
 
@@ -213,6 +323,9 @@ impl AppState {
                 selected_file: None,
             },
             locale: self.locale,
+            locale_dialog_open: self.locale_dialog_open,
+            pending_locale: self.pending_locale,
+            previous_folder_state: self.previous_folder_state.clone(),
         }
     }
 
@@ -252,6 +365,9 @@ impl AppState {
                 selected_file: None,
             },
             locale: self.locale,
+            locale_dialog_open: self.locale_dialog_open,
+            pending_locale: self.pending_locale,
+            previous_folder_state: self.previous_folder_state.clone(),
         }
     }
 
@@ -273,6 +389,9 @@ impl AppState {
                     selected_file: selected,
                 },
                 locale: self.locale,
+                locale_dialog_open: self.locale_dialog_open,
+                pending_locale: self.pending_locale,
+                previous_folder_state: self.previous_folder_state.clone(),
             },
             FolderState::Idle | FolderState::Loading => self.clone(),
         }
@@ -286,6 +405,9 @@ impl AppState {
             FolderState::Loaded { .. } => Self {
                 folder_state: FolderState::Idle,
                 locale: self.locale,
+                locale_dialog_open: self.locale_dialog_open,
+                pending_locale: self.pending_locale,
+                previous_folder_state: self.previous_folder_state.clone(),
             },
             FolderState::Idle | FolderState::Loading => self.clone(),
         }
