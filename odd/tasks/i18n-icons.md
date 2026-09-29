@@ -52,4 +52,4 @@
 ### Evidence
 - Independent verification found no blockers.
 - Manual GUI smoke and Windows execution were not exercised.
-- Work-unit commit: `b6cf59c feat: add localized heroicons desktop UI`.
+- Work-unit commits: `be1a144 feat: add localized heroicons desktop UI` (initial feature) and `2b24ece fix: position heroicons within egui layout` (follow-up layout fix authorized by user).
