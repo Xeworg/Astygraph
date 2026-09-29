@@ -22,8 +22,11 @@ Deliver the first usable native desktop slice, prioritizing essential project/so
    - GREEN: `cargo test --workspace --all-targets` passed with 7 tests (1 identity + 6 app-shell); `cargo fmt --all -- --check` and `git diff --check` passed.
    - Review: independent verifier confirmed cancellation/state transitions; removed unused direct `winit` and speculative `tracing-subscriber` dependencies before closeout. Manual GUI launch was not exercised.
    - Work-unit commit: `dc8a5b6 feat: add native desktop shell and folder picker`.
-2. [ ] Add safe project-file navigation and a code viewer.
+2. [x] Add safe project-file navigation and a code viewer.
    - Acceptance: browse nested project files and display selected text with line numbers; show visible diagnostic for files over the provisional 1 MiB ceiling; surface invalid UTF-8 and I/O failures without panics; tests cover boundaries and errors. Apply the PRD's default exclusions, symlink policy, and bounded/incomplete discovery behavior.
+   - GREEN: `cargo test --workspace --all-targets` passed with 53 tests; `cargo fmt --all -- --check` and `git diff --check` passed.
+   - Review: independent verification confirmed nested drill-down, safe parent/sibling/traversal and symlink guards, viewer error/large-file behavior, exclusions, and bounded discovery. Manual GUI smoke and Windows execution were not exercised.
+   - Work-unit commit: `6e0b9c7 feat: add safe project navigation and code viewer`.
 3. [ ] Add Spanish/English localization and Heroicons outline assets.
    - Acceptance: all user-visible shell/browser/viewer strings use translation keys; users can switch between Spanish and English; essential actions and file/folder types use Heroicons outline SVGs; retain the MIT license notice and test locale fallback/key coverage.
 4. [ ] Establish a UI-independent graph-view model boundary.

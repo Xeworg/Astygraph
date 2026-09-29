@@ -36,10 +36,14 @@ mod app_shell {
         let selected_path = std::path::PathBuf::from("/tmp");
         let state = state.on_folder_selected(Some(selected_path.clone()));
 
-        let FolderState::Loaded { path } = state.folder_state else {
+        let FolderState::Loaded {
+            root, current_dir, ..
+        } = state.folder_state
+        else {
             panic!("expected Loaded state, got {:?}", state.folder_state);
         };
-        assert_eq!(path, selected_path);
+        assert_eq!(root, selected_path);
+        assert_eq!(current_dir, selected_path);
     }
 
     #[test]
