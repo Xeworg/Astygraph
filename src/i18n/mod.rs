@@ -73,6 +73,12 @@ impl Translations for En {
             ("source.io_error", "I/O error: {0}"),
             ("source.utf8_error", "Invalid UTF-8: the file contains bytes that are not valid UTF-8 encoding."),
             ("locale.toggle", "Language"),
+            ("locale.dialog.title", "Language"),
+            ("locale.dialog.apply", "Apply"),
+            ("locale.dialog.cancel", "Cancel"),
+            ("locale.dialog.english", "English"),
+            ("locale.dialog.spanish", "Español"),
+            ("locale.dialog.current", "(current)"),
         ]
     }
 }
@@ -99,6 +105,12 @@ impl Translations for Es {
             ("source.io_error", "Error de E/S: {0}"),
             ("source.utf8_error", "UTF-8 inválido: el archivo contiene bytes que no son codificación UTF-8 válida."),
             ("locale.toggle", "Idioma"),
+            ("locale.dialog.title", "Idioma"),
+            ("locale.dialog.apply", "Aplicar"),
+            ("locale.dialog.cancel", "Cancelar"),
+            ("locale.dialog.english", "English"),
+            ("locale.dialog.spanish", "Español"),
+            ("locale.dialog.current", "(actual)"),
         ]
     }
 }
@@ -194,6 +206,12 @@ mod tests {
             "source.io_error",
             "source.utf8_error",
             "locale.toggle",
+            "locale.dialog.title",
+            "locale.dialog.apply",
+            "locale.dialog.cancel",
+            "locale.dialog.english",
+            "locale.dialog.spanish",
+            "locale.dialog.current",
         ]
     }
 

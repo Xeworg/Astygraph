@@ -7,6 +7,112 @@ mod i18n_tests {
     use astynex::app_state::AppState;
     use astynex::i18n::{I18n, Locale};
 
+    // --- Locale dialog state ---
+
+    #[test]
+    fn locale_dialog_state_api() {
+        let state = AppState::default();
+
+        // Initially closed
+        assert!(!state.is_locale_dialog_open());
+        assert!(state.pending_locale().is_none());
+
+        // Open dialog initializes pending with current locale
+        let state = state.open_locale_dialog();
+        assert!(state.is_locale_dialog_open());
+        assert_eq!(state.pending_locale(), Some(Locale::En));
+
+        // Draft changes pending locale
+        let state = state.draft_locale(Locale::Es);
+        assert!(state.is_locale_dialog_open());
+        assert_eq!(state.pending_locale(), Some(Locale::Es));
+
+        // Apply commits the locale
+        let state = state.apply_locale();
+        assert!(!state.is_locale_dialog_open());
+        assert!(state.pending_locale().is_none());
+        assert_eq!(state.locale(), Locale::Es);
+    }
+
+    #[test]
+    fn locale_dialog_cancel_discards_draft() {
+        let state = AppState::default();
+        assert_eq!(state.locale(), Locale::En);
+
+        // Open and draft a change
+        let state = state.open_locale_dialog().draft_locale(Locale::Es);
+        assert_eq!(state.pending_locale(), Some(Locale::Es));
+
+        // Cancel discards the draft
+        let state = state.cancel_locale();
+        assert!(!state.is_locale_dialog_open());
+        assert!(state.pending_locale().is_none());
+        assert_eq!(state.locale(), Locale::En); // Original unchanged
+    }
+
+    #[test]
+    fn locale_dialog_dialog_translations_in_both_locales() {
+        let en = I18n::new(Locale::En);
+        let es = I18n::new(Locale::Es);
+
+        let dialog_keys = [
+            "locale.dialog.title",
+            "locale.dialog.apply",
+            "locale.dialog.cancel",
+            "locale.dialog.english",
+            "locale.dialog.spanish",
+            "locale.dialog.current",
+        ];
+
+        for key in dialog_keys {
+            assert_ne!(
+                en.t(key).as_ref(),
+                key,
+                "key '{key}' is missing from English locale"
+            );
+            assert_ne!(
+                es.t(key).as_ref(),
+                key,
+                "key '{key}' is missing from Spanish locale"
+            );
+        }
+    }
+
+    #[test]
+    fn locale_dialog_labels_are_localized() {
+        let en = I18n::new(Locale::En);
+        let es = I18n::new(Locale::Es);
+
+        // English labels should be in English
+        assert_eq!(en.t("locale.dialog.english"), "English");
+        assert_eq!(en.t("locale.dialog.spanish"), "Español");
+        assert_eq!(en.t("locale.dialog.current"), "(current)");
+
+        // Spanish labels should be in Spanish
+        assert_eq!(es.t("locale.dialog.english"), "English");
+        assert_eq!(es.t("locale.dialog.spanish"), "Español");
+        assert_eq!(es.t("locale.dialog.current"), "(actual)");
+    }
+
+    #[test]
+    fn locale_dialog_preserves_state_on_apply() {
+        // Verify dialog state is independent of folder state
+        let state = AppState::default();
+
+        // Open dialog - works independently of folder state
+        let state = state.open_locale_dialog();
+        assert!(state.is_locale_dialog_open());
+
+        // Draft changes locale
+        let state = state.draft_locale(Locale::Es);
+        assert_eq!(state.pending_locale(), Some(Locale::Es));
+
+        // Apply commits the change
+        let state = state.apply_locale();
+        assert!(!state.is_locale_dialog_open());
+        assert_eq!(state.locale(), Locale::Es);
+    }
+
     // --- Locale switching ---
 
     #[test]

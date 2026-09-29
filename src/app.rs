@@ -15,7 +15,7 @@ use rfd::FileDialog;
 
 use crate::app_state::{AppState, FolderState};
 use crate::fs::FileKind;
-use crate::i18n::I18n;
+use crate::i18n::{I18n, Locale};
 use crate::icons::{self, Icon};
 use crate::viewer::{self, TextContent};
 
@@ -42,7 +42,7 @@ struct UiActions {
     selected_file: Option<PathBuf>,
     navigate_to_dir: Option<PathBuf>,
     navigate_up: bool,
-    toggle_locale: bool,
+    open_locale_dialog: bool,
 }
 
 impl AstynexApp {
@@ -78,33 +78,42 @@ impl AstynexApp {
 
 impl eframe::App for AstynexApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        ui.heading(self.i18n.t("app.title").as_ref());
-
         // Actions to apply after rendering (avoids borrow conflict with closures).
         let mut actions = UiActions::default();
 
-        // --- Locale toggle ---
-        // Small button in the top-right area.
+        // --- Persistent Top Toolbar ---
+        // Left: title + Open Folder button
+        // Right: Language button
         ui.horizontal(|ui| {
+            // Title on the left
+            ui.heading(self.i18n.t("app.title").as_ref());
+
+            // Open Folder button - always visible, works from any state
+            ui.separator();
+            if ui.button(self.i18n.t("folder.open").as_ref()).clicked() {
+                self.state = self.state.open_folder();
+                let picked = FileDialog::new()
+                    .set_title(self.i18n.t("folder.open_title").as_ref())
+                    .pick_folder();
+                self.state = self.state.on_folder_selected(picked);
+            }
+
+            // Push remaining space
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                if ui
-                    .button(format!("[{}]", self.state.locale().label()))
-                    .clicked()
-                {
-                    actions.toggle_locale = true;
+                ui.add_space(10.0);
+
+                // Language button on the right
+                if ui.button(self.i18n.t("locale.toggle").as_ref()).clicked() {
+                    actions.open_locale_dialog = true;
                 }
             });
         });
 
+        ui.separator();
+
         match &self.state.folder_state {
             FolderState::Idle => {
-                if ui.button(self.i18n.t("folder.open").as_ref()).clicked() {
-                    self.state = self.state.open_folder();
-                    let picked = FileDialog::new()
-                        .set_title(self.i18n.t("folder.open_title").as_ref())
-                        .pick_folder();
-                    self.state = self.state.on_folder_selected(picked);
-                }
+                ui.label(self.i18n.t("source.select_file").as_ref());
             }
             FolderState::Loading => {
                 ui.spinner();
@@ -296,12 +305,82 @@ impl eframe::App for AstynexApp {
             }
         }
 
-        // Apply actions AFTER all closures (no borrow conflict).
-        if actions.toggle_locale {
-            let new_locale = self.state.locale().toggle();
-            self.state = self.state.clone().with_locale(new_locale);
-            self.i18n = I18n::new(new_locale);
+        // --- Locale Dialog Modal ---
+        // Render the modal BEFORE applying frame actions, so Apply/Cancel clicks
+        // inside it are captured and applied in the same frame.
+        //
+        // Step 1: open the dialog if requested (takes effect before modal render).
+        if actions.open_locale_dialog {
+            self.state = self.state.open_locale_dialog();
         }
+
+        // Local draft, independent of the frame-level `actions` struct.
+        // Initialised from pending_locale so opening the dialog after a prior
+        // partial selection preserves that selection.
+        let mut draft_locale: Locale = self.state.pending_locale().unwrap_or(self.state.locale());
+
+        let mut modal_apply = false;
+        let mut modal_cancel = false;
+
+        if self.state.is_locale_dialog_open() {
+            let current_locale = self.state.locale();
+
+            let response = egui::Modal::new(egui::Id::new("locale_dialog")).show(ui.ctx(), |ui| {
+                ui.set_width(280.0);
+                ui.heading(self.i18n.t("locale.dialog.title").as_ref());
+                ui.separator();
+
+                // Radio buttons bound directly to the local `draft_locale`.
+                ui.radio_value(&mut draft_locale, Locale::En, {
+                    let label = self.i18n.t("locale.dialog.english").as_ref().to_string();
+                    if current_locale == Locale::En {
+                        format!("{} {}", label, self.i18n.t("locale.dialog.current"))
+                    } else {
+                        label
+                    }
+                });
+                ui.radio_value(&mut draft_locale, Locale::Es, {
+                    let label = self.i18n.t("locale.dialog.spanish").as_ref().to_string();
+                    if current_locale == Locale::Es {
+                        format!("{} {}", label, self.i18n.t("locale.dialog.current"))
+                    } else {
+                        label
+                    }
+                });
+
+                ui.add_space(10.0);
+                ui.separator();
+
+                // Apply / Cancel buttons — write into the outer frame actions.
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                        if ui
+                            .button(self.i18n.t("locale.dialog.cancel").as_ref())
+                            .clicked()
+                        {
+                            modal_cancel = true;
+                        }
+                        if ui
+                            .button(self.i18n.t("locale.dialog.apply").as_ref())
+                            .clicked()
+                        {
+                            modal_apply = true;
+                        }
+                    });
+                });
+            });
+
+            // Backdrop click or Escape also cancels.
+            if response.should_close() {
+                modal_cancel = true;
+            }
+        }
+
+        // --- Apply frame actions AFTER modal render ---
+        //
+        // Non-modal actions (folder/browser) were collected into `actions` by
+        // their respective closures.  Apply them here before the modal actions
+        // so that folder state is consistent when the i18n instance is rebuilt.
         if actions.close_folder {
             self.state = self.state.reset_folder();
         }
@@ -313,6 +392,22 @@ impl eframe::App for AstynexApp {
         }
         if let Some(path) = actions.selected_file {
             self.state = self.state.select_file(Some(path));
+        }
+
+        // Modal actions — captured after render so they take effect this frame.
+        //
+        // Propagate the radio selection to draft_locale first, then handle
+        // Apply / Cancel in order so that "select + Apply in one frame" works.
+        if self.state.is_locale_dialog_open() {
+            self.state = self.state.draft_locale(draft_locale);
+        }
+        if modal_apply {
+            let new_locale = self.state.pending_locale().unwrap_or(self.state.locale());
+            self.state = self.state.apply_locale();
+            self.i18n = I18n::new(new_locale);
+        }
+        if modal_cancel {
+            self.state = self.state.cancel_locale();
         }
     }
 }
