@@ -21,9 +21,14 @@ Organize the desktop shell toolbar so users can open or switch projects from any
    - Independent verification: no blockers; confirmed snapshot restore/clear and pending locale behavior across folder operations.
    - Work-unit commit: `96f55ba feat: preserve app state during folder and language selection`.
    - Strict TDD runner: `cargo test --workspace --all-targets`.
-2. [ ] Add the top toolbar and localized language dialog.
+2. [x] Add the top toolbar and localized language dialog.
    - Acceptance: toolbar is visible across app states; Open Folder invokes the native picker; Language opens a modal with English/Español choices and Apply/Cancel; applying updates all UI strings and cancelling preserves the active locale; dialog/toolbar strings exist in both locales.
-   - Keep the existing explorer Close Folder control and folder browsing/viewer behavior.
+   - Implementation: `src/app.rs` now places title + Open Folder at the left and Language at the right in a persistent toolbar. Language opens `egui::Modal` with the active locale's copy, current locale preselected, English/Español radios, and Apply/Cancel; backdrop/Escape cancel the draft. The modal blocks the underlying toolbar and explorer. Existing Close Folder remains in Explorer.
+   - Localization: added six dialog keys for title, Apply, Cancel, English, Español, and current marker; tests cover both locale tables. No icon/dependency changes.
+   - RED/GREEN: translation and state tests failed before implementation; `cargo test --workspace --all-targets` passed with 124 tests after implementation; `cargo fmt --all -- --check` passed.
+   - Independent verification: no blockers; confirmed modal behavior against egui 0.36, radio/apply event ordering, folder replacement behavior, and translations. `cargo doc` retains two pre-existing redundant-link warnings in `src/app.rs` lines 3–4.
+   - Native review: candidate review capture escalated with `native_stop_required`; no reviewer verdict or approval was produced. Do not treat the candidate as approved.
+   - Work-unit commit: `b2543a5 feat: add toolbar and language selection dialog`.
 3. [ ] Independently verify and close the feature.
    - Acceptance: focused and full tests, formatting and diff checks pass; report GUI smoke status; record work-unit commits and evidence here.
 
