@@ -7,6 +7,8 @@ pub const APPLICATION_NAME: &str = "Astynex";
 
 /// Filesystem access layer — safe project-file discovery.
 pub mod fs;
+/// UI-independent graph model boundary for future rendering layers.
+pub mod graph;
 /// Internationalization — Spanish/English locale-aware UI strings.
 pub mod i18n;
 /// Heroicons outline SVG assets for essential desktop UI actions.
