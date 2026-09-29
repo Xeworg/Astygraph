@@ -41,8 +41,11 @@ Deliver the first usable native desktop slice, prioritizing essential project/so
    - Validation: `cargo fmt --all -- --check`, `git diff --check`, `cargo clippy --lib --no-deps -- -D warnings`, `cargo clippy --test graph_model --no-deps -- -D warnings` passed. `cargo doc --no-deps --lib` generated with two pre-existing redundant-link warnings in `src/app.rs`; no graph-module rustdoc warnings remain.
    - Review: independent verifier found no blockers; confirmed acceptance, invariants, headless use, and no UI/parser/provider coupling. Manual GUI smoke and Windows execution were not exercised.
    - Work-unit commit: `e8643b9 feat: add UI-independent graph model boundary`.
-5. [ ] Verify the complete slice and record evidence.
+5. [x] Verify the complete slice and record evidence.
    - Acceptance: `cargo test --workspace --all-targets`, `cargo fmt --all -- --check`, and `git diff --check` pass; report whether manual desktop smoke was possible; every completed implementation task has a separate work-unit commit recorded here.
+   - Final verification: `cargo test --workspace --all-targets` — 106 passed, 0 failed; `cargo fmt --all -- --check` — passed; `git diff --check` — passed. Tasks 1–4 work-unit SHAs were confirmed to exist in git (`dc8a5b6`, `dc87558`, `be1a144` + follow-up `2b24ece`, and `e8643b9`).
+   - Worktree: tracked tree clean at verification; pre-existing untracked `.codegraph/` and `.vscode/` preserved, not modified or staged.
+   - Manual GUI smoke and Windows execution were not exercised; verification was headless.
 
 ## Evidence
 - Initial exploration found only the Rust workspace bootstrap and an application-name smoke test; no desktop UI or project-browser implementation existed.
