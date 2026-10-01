@@ -54,7 +54,7 @@ Snapshot creation and fingerprint composition exist, but neither currently compa
 
 ## Commits
 - Implementation: `a2f4981 feat: revalidate snapshot freshness`.
-- Windows verification evidence: pending documentation close-out commit.
+- Windows verification evidence: `89a4a55 docs: record Windows freshness verification`.
 
 ## Next step
 Continue with the next separately scoped persistence feature: design the parser/analysis payload schema. Do not add database payload persistence until that scope is explicitly planned.
