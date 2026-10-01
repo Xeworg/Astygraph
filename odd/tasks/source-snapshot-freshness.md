@@ -42,8 +42,8 @@ Project files can change during analysis. Persistent derived results must not be
 ## Progress
 - [x] Persistence foundation and cache contract read; `sha2 0.10.9` is available in local Cargo cache.
 - [x] Task 1 — complete; agent recovered, fixes applied, and all Linux checks passed.
-- [ ] Task 2 — in progress.
+- [ ] Task 2 — pending authorization to continue.
 - [ ] Task 3 — pending.
 
 ## Next step
-Implement Task 2: compose separate parse and semantic-analysis fingerprints with normalized project-relative input identities, ordered context membership, and freshness comparison. Do not persist fingerprints yet.
+Next after user confirms continuation: compose separate parse and semantic-analysis fingerprints with normalized project-relative input identities and ordered context membership. Do not persist fingerprints yet.
