@@ -40,7 +40,7 @@ Project files can change during analysis. Persistent derived results must not be
 3. [ ] Independently verify, run checks, record evidence and work-unit commits.
    - Final independent verification: 279 passed, 0 failed; `cargo fmt --check`, lib clippy (`-D warnings`), fingerprint-test clippy (`-D warnings`), and `git diff --check` passed without warnings. One intentional ignored doc-test; Windows not run.
    - Native consent declined for this candidate. ASSESS returned `unassessable` because selected new source/test files remain untracked; the separate verifier completed the required independent verification. No native review closure is claimed.
-   - Work-unit commit: pending.
+   - Work-unit commit: `192dd97 feat: compose source freshness fingerprints`.
 
 ## Acceptance
 - SHA-256 digest is computed over exact bytes used by the caller; identical bytes yield identical digests.
@@ -54,7 +54,7 @@ Project files can change during analysis. Persistent derived results must not be
 - [x] Persistence foundation and cache contract read; `sha2 0.10.9` is available in local Cargo cache.
 - [x] Task 1 — complete; agent recovered, fixes applied, and all Linux checks passed.
 - [x] Task 2 — complete; independent audit findings corrected and final Linux verification passed (279 tests).
-- [ ] Task 3 — in progress; final verification complete, preparing the work-unit commit and recording its identity.
+- [x] Task 3 — complete; independent verification recorded and work-unit commit `192dd97` created.
 
 ## Next step
-Task 2 verification is complete; close Task 3 by committing the implementation and recording the commit identity. Do not persist fingerprints yet.
+Fingerprint composition is committed as `192dd97`; next continue with the separately scoped freshness validation task. Do not persist fingerprints yet.
