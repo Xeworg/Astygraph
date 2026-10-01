@@ -16,6 +16,9 @@ pub mod icons;
 /// Text/code viewer layer — line-numbered viewing with UTF-8 handling.
 pub mod viewer;
 
+/// Headless SQLite cache layer — typed errors, path resolution, open.
+pub mod persistence;
+
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod app;
 pub mod app_state;
