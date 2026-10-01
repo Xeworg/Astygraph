@@ -4,7 +4,6 @@
 //! Does NOT cover: fingerprint composition, path policy, DB writes.
 
 use std::fs::{self, File};
-use std::path::Path;
 use tempfile::TempDir;
 
 #[cfg(unix)]
@@ -22,7 +21,7 @@ use std::os::unix::fs::PermissionsExt;
 /// NIST SHA-256 test vector: "abc" → ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
 #[test]
 fn known_vector_abc() {
-    use astynex::persistence::snapshot::{SourceDigest, SourceSnapshot};
+    use astynex::persistence::snapshot::SourceDigest;
 
     let bytes = b"abc";
     let digest = SourceDigest::compute_from_bytes(bytes);
@@ -39,7 +38,7 @@ fn known_vector_abc() {
 /// cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0
 #[test]
 fn known_vector_repeated_a() {
-    use astynex::persistence::snapshot::{SourceDigest, SourceSnapshot};
+    use astynex::persistence::snapshot::SourceDigest;
 
     let bytes: Vec<u8> = (0..1_000_000).map(|_| b'a').collect();
     let digest = SourceDigest::compute_from_bytes(&bytes);
@@ -50,7 +49,7 @@ fn known_vector_repeated_a() {
 /// Round-trip: file → snapshot → digest → hex → identical across reads
 #[test]
 fn known_vector_file_roundtrip() {
-    use astynex::persistence::snapshot::{SourceDigest, SourceSnapshot};
+    use astynex::persistence::snapshot::SourceSnapshot;
 
     let temp = TempDir::new().unwrap();
     let file_path = temp.path().join("vector.txt");
@@ -91,7 +90,7 @@ fn different_bytes_different_digest() {
 
 #[test]
 fn different_file_content_produces_different_digest() {
-    use astynex::persistence::snapshot::{SourceDigest, SourceSnapshot};
+    use astynex::persistence::snapshot::SourceSnapshot;
 
     let temp = TempDir::new().unwrap();
     let file1 = temp.path().join("a.txt");
@@ -107,7 +106,7 @@ fn different_file_content_produces_different_digest() {
 
 #[test]
 fn empty_file_has_deterministic_digest() {
-    use astynex::persistence::snapshot::{SourceDigest, SourceSnapshot};
+    use astynex::persistence::snapshot::SourceSnapshot;
 
     let temp = TempDir::new().unwrap();
     let empty_file = temp.path().join("empty.txt");
@@ -138,10 +137,16 @@ fn snapshot_preserves_exact_bytes() {
 fn missing_file_returns_error() {
     use astynex::persistence::snapshot::SourceSnapshot;
 
-    let result = SourceSnapshot::from_path(Path::new("/nonexistent/path/to/file.txt"));
-    assert!(result.is_err());
+    let temp = TempDir::new().unwrap();
+    let missing = temp.path().join("not-created.txt");
+    let result = SourceSnapshot::from_path(&missing);
+    assert!(matches!(
+        result,
+        Err(astynex::persistence::Error::SnapshotRead { path, .. }) if path.contains("not-created.txt")
+    ));
 }
 
+#[cfg(unix)]
 #[test]
 fn unreadable_file_returns_permission_error() {
     use astynex::persistence::snapshot::SourceSnapshot;
@@ -150,39 +155,22 @@ fn unreadable_file_returns_permission_error() {
     let file_path = temp.path().join("unreadable.txt");
     fs::write(&file_path, b"sensitive").unwrap();
 
-    // Remove all read permissions
-    #[cfg(unix)]
-    {
-        let mut perms = fs::metadata(&file_path).unwrap().permissions();
-        perms.set_mode(0o000);
-        fs::set_permissions(&file_path, perms).unwrap();
-    }
-    #[cfg(windows)]
-    {
-        // Windows: mark file as hidden/system to simulate unreadable
-        // Skip on Windows if chmod isn't reliably supported in test env
-        let result = std::panic::catch_unwind(|| SourceSnapshot::from_path(&file_path));
-        // If the file is actually unreadable, result is Err
-        // If permissions couldn't be changed, test is inconclusive — pass gracefully
-        if let Err(_) = result {
-            return; // File was unreadable as expected
-        }
-    }
+    // Unix mode bits provide a reliable denied-read fixture on this platform.
+    let original_permissions = fs::metadata(&file_path).unwrap().permissions();
+    let mut denied_permissions = original_permissions.clone();
+    denied_permissions.set_mode(0o000);
+    fs::set_permissions(&file_path, denied_permissions).unwrap();
 
     let result = SourceSnapshot::from_path(&file_path);
+    // Restore before asserting so cleanup occurs even when the expectation fails.
+    let _ = fs::set_permissions(&file_path, original_permissions);
     assert!(
-        result.is_err(),
-        "unreadable file should return error, got is_ok={}",
-        result.is_ok()
+        matches!(
+            result,
+            Err(astynex::persistence::Error::SnapshotRead { .. })
+        ),
+        "unreadable file should return SnapshotRead"
     );
-
-    // Restore permissions for cleanup
-    #[cfg(unix)]
-    {
-        let mut perms = fs::metadata(&file_path).unwrap().permissions();
-        perms.set_mode(0o644);
-        let _ = fs::set_permissions(&file_path, perms);
-    }
 }
 
 // ─── digest comparison and display ──────────────────────────────────────────
@@ -202,8 +190,8 @@ fn digest_equality_and_hash() {
 
     // Hash consistency (enables use in HashMap/Set)
     let mut set: HashSet<SourceDigest> = HashSet::new();
-    assert!(set.insert(d1.clone()));
-    assert!(!set.insert(d1.clone())); // duplicate rejected
+    assert!(set.insert(d1));
+    assert!(!set.insert(d1)); // duplicate rejected
     assert!(set.insert(d3));
     assert_eq!(set.len(), 2);
 }
@@ -228,5 +216,67 @@ fn digest_display_format() {
     assert_eq!(
         display,
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
+}
+
+// ─── end-to-end smoke test ───────────────────────────────────────────────────
+
+/// Smoke test: SourceSnapshot + DB open integration.
+///
+/// Verifies:
+/// - Snapshot digest is deterministic for the known sample payload.
+/// - Source file bytes remain unchanged and readable.
+/// - Fresh DB schema version is 0.
+/// - In this fresh, empty-schema DB open operation, raw sample bytes were not copied into the DB file.
+#[test]
+fn smoke_snapshot_and_db_open() {
+    use astynex::persistence::open_cache_db;
+    use astynex::persistence::snapshot::SourceSnapshot;
+
+    // Unique payload unlikely to appear elsewhere in DB.
+    const PAYLOAD: &[u8] = b"SMOKE_TEST_PAYLOAD_7f3a9c42_XYZW_EOF";
+
+    // Pre-computed SHA-256 of PAYLOAD for deterministic assertion.
+    // Reproduce with: printf %s 'SMOKE_TEST_PAYLOAD_7f3a9c42_XYZW_EOF' | sha256sum
+    const EXPECTED_DIGEST: &str =
+        "21805adbe9f5d0fd4831beab19e072abd701220211cbd5a4e4594e367fad5bdf";
+
+    let project = TempDir::new().unwrap();
+
+    // Write sample source file.
+    let source_path = project.path().join("sample.asty");
+    fs::write(&source_path, PAYLOAD).expect("sample file must be writable");
+
+    // Build snapshot from source.
+    let snap =
+        SourceSnapshot::from_path(&source_path).expect("snapshot must be created from sample file");
+
+    // Assert known digest.
+    assert_eq!(
+        snap.digest().as_hex(),
+        EXPECTED_DIGEST,
+        "snapshot digest must match pre-computed SHA-256 of payload"
+    );
+
+    // Assert source bytes unchanged and readable.
+    let read_back = fs::read(&source_path).expect("sample file must be re-readable");
+    assert_eq!(&read_back, PAYLOAD, "source bytes must be unchanged");
+    assert_eq!(snap.bytes(), PAYLOAD, "snapshot must hold identical bytes");
+
+    // Open cache DB in project directory.
+    let conn = open_cache_db(project.path()).expect("open_cache_db must succeed on fresh project");
+
+    // Assert DB user_version is 0.
+    let user_version: i32 = conn
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .expect("user_version pragma must be queryable");
+    assert_eq!(user_version, 0, "fresh DB schema version must be 0");
+
+    // Assert DB file does not contain the unique payload bytes.
+    let db_path = project.path().join(".astynex").join("cache.db");
+    let db_bytes = fs::read(&db_path).expect("DB file must exist after open");
+    assert!(
+        !db_bytes.windows(PAYLOAD.len()).any(|w| w == PAYLOAD),
+        "fresh DB open must not copy the sample source bytes into the database"
     );
 }
