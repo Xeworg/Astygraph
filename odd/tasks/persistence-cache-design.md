@@ -46,7 +46,7 @@ See `PRD.md` §9 for the diagram. Tables represent seen files, observed file dep
 - [x] Incorporated independent read-only review findings on graph scope, race boundaries, invalidation, schema, and migration behavior.
 - [x] Independent verifier reviewed the graph scope, fingerprint/cache validity, unavoidable external-writer race boundary, context membership, privacy, schema, and migrations; no blockers reported.
 - [x] `git diff --check` passed. GUI/runtime tests are not applicable to this docs-only change; schema/migration behavior remains an implementation-time verification gate.
-- [ ] Work-unit commit identity pending.
+- [x] Work-unit commit: `5ec6a25 docs: specify privacy-safe SQLite cache design`.
 
 ## Next step
-Documentation checks and independent review passed. Commit the three intended design documents as the work unit, then record the commit identity.
+Documentation checks and independent review passed. Design and evidence recorded; the work-unit commit is `5ec6a25`.
