@@ -31,7 +31,8 @@ Exercise the current SQLite open and source snapshot APIs together, then obtain 
 4. [x] Record evidence and next step; only then resume source-snapshot fingerprint implementation.
    - Focused suite: 14 passed on Linux. Full workspace suite: 206 passed, 0 failed. `cargo fmt --check`, `cargo clippy --test persistence_snapshot --no-deps -- -D warnings`, and `git diff --check` passed.
    - Earlier validation attempts caught and fixed compile/format/clippy failures; all listed final checks pass.
-   - Work-unit commit: pending.
+   - Native review consent was declined for this candidate; an independent verifier and separate audit completed, and the full checks passed.
+   - Work-unit commit: `e58865b test: verify source snapshot and SQLite open together`.
 
 ## Current state
 - Smoke test + first-agent analysis + separate independent audit are complete on Linux.
