@@ -40,8 +40,8 @@ impl Default for AstynexApp {
 struct UiActions {
     close_folder: bool,
     selected_file: Option<PathBuf>,
-    navigate_to_dir: Option<PathBuf>,
-    navigate_up: bool,
+    expand_dir: Option<PathBuf>,
+    collapse_dir: Option<PathBuf>,
     open_locale_dialog: bool,
 }
 
@@ -73,6 +73,126 @@ impl AstynexApp {
             egui::Stroke::new(icons::STROKE_WIDTH, stroke),
         ));
         ui.painter().add(shape);
+    }
+
+    /// Render a single tree node (directory or file) with expand/collapse affordance.
+    ///
+    /// For directories: shows expand/collapse icon and recursively renders children when expanded.
+    /// For files: shows file icon and selection.
+    /// For symlinks: shows link icon (non-expandable, non-selectable for navigation).
+    fn render_tree_node(
+        &mut self,
+        ui: &mut egui::Ui,
+        entries: &[crate::fs::Entry],
+        selected_file: &Option<PathBuf>,
+        _root: &PathBuf,
+        actions: &mut UiActions,
+        indent_level: usize,
+    ) {
+        // Indentation per level
+        let indent_width = 20.0_f32;
+        let total_indent = indent_level as f32 * indent_width;
+
+        for entry in entries {
+            let name = entry
+                .path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("");
+
+            let is_selected = selected_file.as_ref() == Some(&entry.path);
+            let is_dir = entry.kind == FileKind::Dir;
+            let is_symlink = entry.kind == FileKind::Symlink;
+
+            // Determine if this directory is expanded
+            let is_expanded = self.state.tree_cache().is_expanded(&entry.path);
+
+            // Determine if this directory has cached children (was expanded before)
+            let has_cached_children = self.state.tree_cache().is_dir_loaded(&entry.path);
+
+            // Horizontal layout for this row
+            ui.horizontal(|ui| {
+                // Indentation
+                if total_indent > 0.0 {
+                    ui.add_space(total_indent);
+                }
+
+                if is_dir {
+                    // Expand/collapse affordance
+                    let arrow_char = if is_expanded { "▼" } else { "▶" };
+                    let affordance_response =
+                        ui.add(egui::Label::new(arrow_char).sense(egui::Sense::click()));
+
+                    // Draw folder icon (open or closed based on expanded state)
+                    let icon = if is_expanded {
+                        Icon::FolderOpen
+                    } else {
+                        Icon::Folder
+                    };
+                    self.draw_icon(icon, ui, icons::ICON_SIZE);
+
+                    // Directory name
+                    let response = ui.selectable_label(is_selected, name.to_string());
+
+                    // Handle interactions
+                    if affordance_response.clicked() {
+                        if is_expanded {
+                            actions.collapse_dir = Some(entry.path.clone());
+                        } else {
+                            actions.expand_dir = Some(entry.path.clone());
+                        }
+                    }
+
+                    if response.clicked() {
+                        // Toggle expand/collapse on name click
+                        if is_expanded {
+                            actions.collapse_dir = Some(entry.path.clone());
+                        } else {
+                            actions.expand_dir = Some(entry.path.clone());
+                        }
+                    }
+                } else {
+                    // Non-directory entry: no expand affordance
+                    ui.add_space(16.0); // Space for alignment with expandable items
+
+                    let icon = if is_symlink {
+                        Icon::Link
+                    } else {
+                        Icon::Document
+                    };
+                    self.draw_icon(icon, ui, icons::ICON_SIZE);
+
+                    let response = ui.selectable_label(is_selected, name.to_string());
+
+                    // File selection on click
+                    if response.clicked() && !is_symlink && entry.kind == FileKind::File {
+                        actions.selected_file = Some(entry.path.clone());
+                    }
+                    // Symlinks are displayed but not selectable
+                }
+            });
+
+            // Recursively render children if directory is expanded
+            if is_dir && is_expanded && has_cached_children {
+                // Get children from tree cache (mutable access needed for get_entries)
+                let children: Vec<crate::fs::Entry> = self
+                    .state
+                    .tree_cache_mut()
+                    .get_entries(&entry.path)
+                    .map(|e| e.to_vec())
+                    .unwrap_or_default();
+
+                // Render children with increased indent
+                self.render_tree_node(
+                    ui,
+                    &children,
+                    selected_file,
+                    _root,
+                    actions,
+                    indent_level + 1,
+                );
+            }
+        }
     }
 }
 
@@ -121,20 +241,17 @@ impl eframe::App for AstynexApp {
             }
             FolderState::Loaded {
                 root,
-                current_dir,
+                current_dir: _,
                 entries,
                 selected_file,
             } => {
-                // Clone data for use inside closures (no direct capture of self).
+                // Clone data for use inside closures.
                 let entries = entries.clone();
                 let selected_file = selected_file.clone();
-                let current_dir = current_dir.clone();
                 let root = root.clone();
+                let tree_cache_incomplete = self.state.tree_cache().is_incomplete();
 
-                // Determine if we are at the root (no ".." entry shown).
-                let at_root = current_dir == root;
-
-                // --- Left panel: explorer ---
+                // --- Left panel: explorer (expandable tree) ---
                 egui::containers::panel::Panel::left("explorer")
                     .min_size(200.0)
                     .max_size(400.0)
@@ -142,100 +259,28 @@ impl eframe::App for AstynexApp {
                         ui.heading(self.i18n.t("explorer.title").as_ref());
                         ui.separator();
 
-                        // Breadcrumb: current directory path (truncated to last 2 segments).
-                        let breadcrumb = if at_root {
-                            current_dir
-                                .file_name()
-                                .map(|s| s.to_string_lossy().to_string())
-                                .unwrap_or_else(|| current_dir.to_string_lossy().to_string())
-                        } else {
-                            // Show root / current for deep paths.
-                            let root_name = root
-                                .file_name()
-                                .map(|s| s.to_string_lossy().to_string())
-                                .unwrap_or_else(|| root.to_string_lossy().to_string());
-                            let cur_name = current_dir
-                                .file_name()
-                                .map(|s| s.to_string_lossy().to_string())
-                                .unwrap_or_else(|| current_dir.to_string_lossy().to_string());
-                            format!("{root_name} / {cur_name}")
-                        };
-                        ui.label(egui::RichText::new(&breadcrumb).small());
-
-                        // Navigate-up button (shown when not at root).
-                        if !at_root {
-                            ui.horizontal(|ui| {
-                                if ui.button(self.i18n.t("explorer.up").as_ref()).clicked() {
-                                    actions.navigate_up = true;
-                                }
-                            });
-                        }
-
                         if ui.button(self.i18n.t("folder.close").as_ref()).clicked() {
                             actions.close_folder = true;
                         }
 
                         ui.separator();
 
-                        // Incomplete discovery warning.
-                        let is_incomplete = entries.iter().any(|e| e.is_incomplete);
-                        if is_incomplete {
+                        // Incomplete discovery warning from tree cache.
+                        if tree_cache_incomplete {
                             let msg = self.i18n.t("explorer.discovery_incomplete");
                             ui.label(egui::RichText::new(msg.as_ref()).color(Color32::YELLOW));
                         }
 
-                        // File/directory listing.
+                        // Expandable tree rendering.
                         egui::ScrollArea::vertical().show(ui, |ui| {
-                            // ".." entry to go up one level (omitted at root).
-                            if !at_root {
-                                let is_selected = false;
-                                if ui
-                                    .selectable_label(
-                                        is_selected,
-                                        self.i18n.t("explorer.parent_dir").as_ref(),
-                                    )
-                                    .clicked()
-                                {
-                                    actions.navigate_up = true;
-                                }
-                            }
-
-                            for entry in &entries {
-                                let name = entry
-                                    .path
-                                    .file_name()
-                                    .and_then(|n| n.to_str())
-                                    .unwrap_or("");
-
-                                let is_selected = selected_file.as_ref() == Some(&entry.path);
-
-                                // Icon + name row.
-                                ui.horizontal(|ui| {
-                                    // Draw SVG icon matching file kind.
-                                    let icon = match entry.kind {
-                                        FileKind::Dir => Icon::Folder,
-                                        FileKind::Symlink => Icon::Link,
-                                        FileKind::File => Icon::Document,
-                                    };
-                                    self.draw_icon(icon, ui, icons::ICON_SIZE);
-
-                                    let response =
-                                        ui.selectable_label(is_selected, name.to_string());
-
-                                    if response.clicked() {
-                                        if entry.kind == FileKind::Dir {
-                                            // Clicking a directory navigates into it;
-                                            // clears the viewer so the panel shows the new listing.
-                                            actions.navigate_to_dir = Some(entry.path.clone());
-                                            actions.selected_file = None;
-                                        } else if entry.kind == FileKind::File {
-                                            // Clicking a file selects it for the viewer.
-                                            actions.selected_file = Some(entry.path.clone());
-                                        }
-                                        // Symlinks are displayed but not traversable on click.
-                                    }
-                                });
-                            }
+                            self.render_tree_node(
+                                ui,
+                                &entries,
+                                &selected_file,
+                                &root,
+                                &mut actions,
+                                0, // root level indent
+                            );
                         });
                     });
 
@@ -384,14 +429,14 @@ impl eframe::App for AstynexApp {
         if actions.close_folder {
             self.state = self.state.reset_folder();
         }
-        if actions.navigate_up {
-            self.state = self.state.navigate_up();
-        }
-        if let Some(dir) = actions.navigate_to_dir {
-            self.state = self.state.navigate_to_dir(&dir);
-        }
         if let Some(path) = actions.selected_file {
             self.state = self.state.select_file(Some(path));
+        }
+        if let Some(dir) = actions.expand_dir {
+            self.state = self.state.expand_dir(&dir);
+        }
+        if let Some(dir) = actions.collapse_dir {
+            self.state = self.state.collapse_dir(&dir);
         }
 
         // Modal actions — captured after render so they take effect this frame.
