@@ -166,31 +166,377 @@ Prefer a small set of stable boundaries over premature framework breadth:
 
   **Invalidation:** Detect changes on access by rereading/hash-checking the requested root and its bounded context; a filesystem watcher may later optimize notifications but is not required for correctness. Store dependency edges only for files actually examined and only for parser-observed file-level relationships (for example, imports/includes where that language adapter validates them); do not persist semantic call edges as project dependencies. Each edge set is a versioned observation for its source file and parser/config fingerprint; a refreshed set, including changed membership, invalidates cached analyses whose recorded context-membership digest used the old set. Invalidate directly dependent analyses only; do not compute transitive semantic invalidation or launch whole-project rebuilds. Dependencies and language coverage may be partial and must be labeled as such. The cross-language parser-fact schema remains minimal and is determined by Python/TypeScript vertical-slice conformance tests. Use explicit analysis states such as `candidate`, `current`, `stale`, and `superseded`; only `current` records that pass request-time validation may be shown as current. Preserve the previous accepted snapshot while a replacement candidate is prepared.
 
-  **Conceptual relational schema (illustrative, not a promised cross-language parser-facts schema):**
-  ```text
-  project_files(file_id, relative_path UNIQUE, last_observed_at)
-      ├── file_dependencies(source_file_id, target_file_id, relation_kind,
-      │                    source_digest, parser_fingerprint, completeness)
-      ├── parser_snapshots(file_id, source_digest, parser_fingerprint,
-      │                   facts_schema_version, minimal_facts_payload)
-      └── analyses(analysis_id, root_file_id, query_identity, context_set_digest,
-                   ir_schema_version, analysis_fingerprint, state, created_at)
-              ├── analysis_inputs(analysis_id, file_id, content_digest, input_role)
-              ├── graph_nodes(node_id, analysis_id, source_file_id, kind, label,
-              │               start_byte, end_byte, provenance)
-              ├── graph_edges(edge_id, analysis_id, from_node_id, to_node_id,
-              │               kind, provenance)
-              └── diagnostics(diagnostic_id, analysis_id, code, message, severity)
+  **Payload schema (concrete SQLite DDL, MVP scope):**
+
+  ```sql
+  -- PRAGMA user_version = 1  -- proposed schema; current empty = 0; bump per migration
+  -- Connection invariants (every connection):
+  --   PRAGMA foreign_keys = ON;
+  --   PRAGMA busy_timeout = 5000;  -- 5 s; platform tests may revise
+  --   PRAGMA journal_mode: not selected yet; validate on Linux+Windows first
+  --   PRAGMA synchronous: not selected yet; validate durability/performance
+  -- Controlled TEXT vocabularies are validated by application logic; no enum CHECKs.
+  -- Non-enum invariants (for example byte-range ordering) may use CHECK.
+
+  -- 1. project_files  ───────────────────────────────────────────────────────
+  --    Seen-file registry: only files actually opened, parsed, or reached as
+  --    direct context.  NOT a complete project inventory.
+  CREATE TABLE project_files (
+      file_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      relative_path  TEXT    NOT NULL UNIQUE,           -- normalised URL-style '/'
+      last_observed_at
+                    INTEGER NOT NULL                   -- Unix epoch seconds
+  );
+  -- 2. file_dependencies  ────────────────────────────────────────────────────
+  --    Parser-observed file-level import/include edges.
+  --    NOT semantic call edges.  One row per observed edge per parser snapshot.
+  --    Completeness is parser-reported and may be partial; label it.
+  CREATE TABLE file_dependencies (
+      source_file_id INTEGER NOT NULL REFERENCES project_files(file_id)
+                                             ON DELETE CASCADE,
+      target_file_id INTEGER NOT NULL REFERENCES project_files(file_id)
+                                             ON DELETE CASCADE,
+      relation_kind  TEXT    NOT NULL,  -- extensible non-empty parser vocabulary
+      source_digest  BLOB    NOT NULL,  -- 32-byte SHA-256 of source snapshot used
+      parser_fingerprint
+                    BLOB    NOT NULL,  -- 32-byte parse-fingerprint digest
+      completeness   TEXT    NOT NULL,  -- "complete" | "partial" | "unsupported"
+      PRIMARY KEY (source_file_id, target_file_id, parser_fingerprint)
+  );
+  CREATE INDEX ix_file_deps_source
+      ON file_dependencies(source_file_id);
+  CREATE INDEX ix_file_deps_target
+      ON file_dependencies(target_file_id);
+  -- The PRIMARY KEY above provides the unique constraint on
+  -- (source_file_id, target_file_id, parser_fingerprint); each such combination
+  -- maps to exactly one completeness label.  Multiple rows with different
+  -- fingerprints are allowed.
+
+  -- 3. parser_snapshots  ────────────────────────────────────────────────────
+  --    Minimal structural facts extracted by the Tree-sitter adapter.
+  --    Payload shape is driven by Python/TypeScript vertical-slice tests;
+  --    no universal cross-language schema is assumed before those tests pass.
+  --    Facts are language-specific and read-only.
+  CREATE TABLE parser_snapshots (
+      snapshot_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      file_id            INTEGER NOT NULL REFERENCES project_files(file_id)
+                                                  ON DELETE CASCADE,
+      source_digest      BLOB    NOT NULL,  -- 32-byte SHA-256 of byte snapshot
+      parser_fingerprint BLOB    NOT NULL,  -- 32-byte parse-fingerprint digest
+      facts_schema_version
+                         TEXT    NOT NULL,  -- same version identifier used by parser fingerprint
+      minimal_facts_payload
+                         BLOB    NOT NULL,  -- versioned opaque envelope; the
+                                           -- envelope header declares the language
+                                           -- and version; per-language fact shape
+                                           -- is deferred to language adapters and
+                                           -- validated by conformance fixtures
+      created_at        INTEGER NOT NULL,  -- Unix epoch seconds
+      UNIQUE (file_id, source_digest, parser_fingerprint)
+  );
+  -- Facts schema versioning: bump facts_schema_version when the BLOB envelope
+  -- layout changes.  Old incompatible snapshots are invalidated for lazy rebuild;
+  -- no coercion of old payloads into new meaning.
+
+  -- 4. analyses  ─────────────────────────────────────────────────────────────
+  --    One row per analysis of a root file/symbol query.
+  --    state governs the analysis lifecycle (see State transitions below).
+  CREATE TABLE analyses (
+      analysis_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      root_file_id       INTEGER NOT NULL REFERENCES project_files(file_id)
+                                                  ON DELETE CASCADE,
+      query_identity     TEXT    NOT NULL,  -- stable parser-derived symbol/range
+                                           -- identity or file-level sentinel;
+                                           -- never free-form prompt text
+      context_set_digest
+                         BLOB    NOT NULL,  -- SHA-256 of ordered
+                                           -- (file_id, content_digest) set;
+                                           -- membership change invalidates
+      ir_schema_version  TEXT    NOT NULL,  -- version identifier used by analysis fingerprint
+      analysis_fingerprint
+                         BLOB    NOT NULL,  -- SHA-256 over ordered input
+                                           -- membership/digests + provider/model
+                                           -- + prompt-template + all output-
+                                           -- affecting analysis settings
+      state             TEXT    NOT NULL,  -- extensible TEXT; application logic
+                                           -- validates domain (see below).
+                                           -- No CHECK constraint.
+      created_at        INTEGER NOT NULL,  -- Unix epoch seconds
+      retired_at        INTEGER           -- NULL while current; set on retire
+  );
+  CREATE INDEX ix_analyses_root
+      ON analyses(root_file_id);
+  CREATE INDEX ix_analyses_query
+      ON analyses(query_identity);
+  -- Query-identity stability: derived from parser output (symbol name + range);
+  -- does not change when source is edited within the same symbol boundary.
+  -- State values are application-layer invariants; see State transitions below.
+
+  -- 5. analysis_inputs  ──────────────────────────────────────────────────────
+  --    Exact input membership for an analysis: ordered set of (file_id,
+  --    content_digest, role).  Digest is the 32-byte SHA-256 of the bytes
+  --    actually analyzed.  Role describes the file's purpose in context.
+  CREATE TABLE analysis_inputs (
+      analysis_id   INTEGER NOT NULL REFERENCES analyses(analysis_id)
+                                             ON DELETE CASCADE,
+      file_id       INTEGER NOT NULL REFERENCES project_files(file_id)
+                                             ON DELETE CASCADE,
+      input_order   INTEGER NOT NULL,  -- zero-based position; context order is significant
+      content_digest
+                   BLOB    NOT NULL,  -- 32-byte SHA-256 of bytes analyzed
+      input_role    TEXT    NOT NULL,  -- extensible: "root" | "direct_context"
+                                           -- | "transitive_dep" | future roles;
+                                           -- application logic validates
+      PRIMARY KEY (analysis_id, input_order),
+      UNIQUE (analysis_id, file_id)
+  );
+  CREATE INDEX ix_analysis_inputs_file
+      ON analysis_inputs(file_id);
+  -- input_role is extensible TEXT; no CHECK enum.  New roles can be added
+  -- without a schema migration.
+
+  -- 6. graph_nodes  ──────────────────────────────────────────────────────────
+  --    Validated AI-authored nodes scoped to an analysis snapshot.
+  --    IDs are analysis-internal; no cross-analysis stability promised.
+  --    Source spans are file-relative byte offsets validated against parser.
+  --    Provenance distinguishes parser facts from AI/user content.
+  --    Identifiers and labels may contain source-derived text (sensitive).
+  CREATE TABLE graph_nodes (
+      node_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      analysis_id    INTEGER NOT NULL REFERENCES analyses(analysis_id)
+                                             ON DELETE CASCADE,
+      source_file_id INTEGER NOT NULL REFERENCES project_files(file_id)
+                                             ON DELETE CASCADE,
+      kind           TEXT    NOT NULL,  -- extensible graph node kind
+                                           -- vocabulary; validated by
+                                           -- application + conformance tests
+      label          TEXT    NOT NULL,  -- may contain source-derived text
+      start_byte     INTEGER NOT NULL,  -- 0-based inclusive byte offset
+      end_byte       INTEGER NOT NULL,  -- 0-based exclusive byte offset;
+                                           -- end_byte > start_byte required
+      provenance     TEXT    NOT NULL,  -- extensible provenance vocabulary;
+                                           -- application validates
+      CHECK (end_byte > start_byte),
+      UNIQUE (analysis_id, node_id)
+  );
+  CREATE INDEX ix_graph_nodes_source_file
+      ON graph_nodes(source_file_id);
+  -- Byte-offset correctness: the application validates spans against the
+  -- parser-derived source range for source_file_id before inserting.
+
+  -- 7. graph_edges  ──────────────────────────────────────────────────────────
+  --    Validated edges scoped to an analysis snapshot.  Both endpoints must
+  --    exist in graph_nodes for the same analysis_id.
+  CREATE TABLE graph_edges (
+      edge_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+      analysis_id  INTEGER NOT NULL REFERENCES analyses(analysis_id)
+                                            ON DELETE CASCADE,
+      from_node_id INTEGER NOT NULL,
+      to_node_id   INTEGER NOT NULL,
+      kind         TEXT    NOT NULL,  -- extensible edge kind vocabulary
+                                           -- (sequence, true, false, loop_back,
+                                           -- error, call, ...)
+      label        TEXT,              -- optional; may contain source-derived text
+      provenance   TEXT    NOT NULL,  -- extensible provenance vocabulary
+      FOREIGN KEY (analysis_id, from_node_id)
+          REFERENCES graph_nodes(analysis_id, node_id) ON DELETE CASCADE,
+      FOREIGN KEY (analysis_id, to_node_id)
+          REFERENCES graph_nodes(analysis_id, node_id) ON DELETE CASCADE
+  );
+  CREATE INDEX ix_graph_edges_from_node
+      ON graph_edges(analysis_id, from_node_id);
+  CREATE INDEX ix_graph_edges_to_node
+      ON graph_edges(analysis_id, to_node_id);
+  -- Composite endpoint FKs ensure both nodes belong to the same analysis.
+
+  -- 8. diagnostics  ──────────────────────────────────────────────────────────
+  --    Per-analysis diagnostics.  Severity and code are extensible TEXT;
+  --    application logic validates and classifies.
+  CREATE TABLE diagnostics (
+      diagnostic_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      analysis_id   INTEGER NOT NULL REFERENCES analyses(analysis_id)
+                                            ON DELETE CASCADE,
+      code          TEXT    NOT NULL,  -- stable error/code identifier
+      message       TEXT    NOT NULL,  -- may contain source-derived text;
+                                           -- treat as sensitive cache data
+      severity      TEXT    NOT NULL   -- extensible; application validates
+  );
+  CREATE INDEX ix_diagnostics_analysis
+      ON diagnostics(analysis_id);
+  -- No CHECK enum on severity or code; new values ship in application logic.
   ```
-  `project_files` is a registry only of files actually opened, parsed, or reached as bounded context; it is not a complete project inventory. File dependency relations are parser-observed imports/includes, not semantic call relationships. `query_identity` is a stable parser-derived symbol/range identity (or file-level sentinel), not free-form user prompt text. Source-file identity is explicit on every source span because byte offsets are file-relative. The parser snapshot stores only the minimal facts required by validated vertical-slice behavior; do not prescribe universal `kind/name` fields before those tests. `analysis_fingerprint` covers ordered input membership/digests plus model/provider and analysis configuration; `context_set_digest` detects edge/membership changes. `state` is constrained to candidate/current/stale/superseded; failed candidates are not committed as current. Textual derived fields (identifiers, labels, diagnostics) are source-derived sensitive data: exclude them from ordinary logs/telemetry and any export unless explicitly reviewed. No table stores raw source bytes, prompts, raw provider responses, or credentials.
 
-  Use SQLite `PRAGMA user_version` as the single ordered schema-version marker for MVP migrations. Node/edge IDs are scoped to an analysis snapshot; stable cross-edit identities are not promised.
+  **Parser BLOB envelope (deferred per-language content shape):**
 
-  **Transactions and migrations:** Enable and verify `PRAGMA foreign_keys = ON` on every connection. Run ordered migrations atomically and update `PRAGMA user_version` only after each migration succeeds; migration code must be repeat-safe at the transaction boundary. On a migration error, roll back and report the database version/error without changing source files; offer a user-confirmed rebuild of derived cache if compatibility cannot be restored. Parser/IR schema changes invalidate incompatible derived snapshots for lazy rebuild rather than coercing old payloads into a new meaning. Replace an accepted analysis in one short database transaction: insert validated candidate rows, switch the current snapshot, and retire prior rows atomically; perform filesystem reads/hash checks outside write transactions, then revalidate immediately before publication and recheck before display. Enforce foreign keys, uniqueness, and provenance/state domains with constraints where supported. Keep SQLite's safe default journaling/synchronous behavior unless platform tests justify a documented change; set a bounded busy timeout. Exact concurrency policy and recovery UX require Linux/Windows tests before implementation.
+  The `minimal_facts_payload` column stores a versioned opaque BLOB.  The
+  envelope header is language-agnostic:
 
-  **Clear cache:** Explicitly remove derived database contents (and, if requested, the cache database itself) only; never delete source files, provider configuration, or credentials. Rebuild lazily on future requests.
+  ```text
+  envelope ::= u8(version) || BLOB(payload)
+  ```
 
-  **Implementation:** `rusqlite` with `bundled` feature, relational node/edge tables, recursive CTEs for bounded file-dependency traversal. Hash algorithm, exact configuration serialization, bounded retry/cancellation policy, dependency extraction completeness, migration runner, and durability settings require implementation tests before they are treated as fixed.
+  `version` is `1` for MVP (range 0–255) and matches the `facts_schema_version`
+  identifier `"1"` in the column. Widen the header before introducing a version
+  outside the byte range. The payload shape for each language is determined by that language's vertical-slice
+  conformance tests and is not cross-language uniform.  The parser adapter for
+  each language knows how to serialize and deserialize its own payload.  No
+  payload crosses language boundaries; no universal `kind`/`name` fields are
+  assumed before Python/TypeScript tests define them.
+
+  **Extensible TEXT validation (no fixed enum CHECK):**
+
+  Every TEXT column that carries a controlled vocabulary (state, kind,
+  relation_kind, provenance, severity, input_role, completeness) is validated
+  by the Rust application layer before insert.  SQLite CHECK constraints are
+  intentionally absent: adding a new valid value (e.g. a new graph node kind
+  or analysis state) must not force a schema migration.  The application
+  maintains the canonical valid set; an invalid value inserted by a buggy caller
+  is a programmer error caught by the type layer, not a runtime data-corruption
+  risk guarded by a CHECK.
+
+  **State machine and revalidation outcomes:**
+
+  `analyses.state` encodes the analysis lifecycle:
+
+  | State | Meaning |
+  |---|---|
+  | `candidate` | Candidate result computed; awaiting request-time input revalidation.  Not shown to users. |
+  | `current` | Accepted; all inputs revalidated; passes schema and source-span checks.  May be shown as the active analysis. |
+  | `stale` | Previously current; one or more input digests or context-membership no longer match at reuse time.  Revalidation loop is in progress or pending. |
+  | `superseded` | A newer candidate displaced this row; retained for diagnostics until explicitly purged.  Never shown as current. |
+
+  The persistence layer does not map `stale` to a user-visible "Fresh" label.
+  "Fresh" is a runtime freshness outcome from the revalidation protocol, not a
+  stored column value. A post-commit final revalidation failure must prevent
+  presentation and mark the new row stale (or retain it only as a non-current
+  candidate); never expose it as accepted current data.
+
+  Revalidation outcomes surface as runtime diagnostics, not as state transitions:
+
+  | Outcome | Action |
+  |---|---|
+  | All inputs match digests and context membership | Show current cache entry; no state change needed. |
+  | `MissingInput`: an explicit input read returns `NotFound` (deleted or moved) | Do not accept candidate; mark prior current row stale and retain its payload only as non-current history. Return `MissingInput`; other I/O errors remain typed errors. |
+  | `Stale`: one or more input digests differ or context membership changed (all inputs exist) | Do not accept candidate; mark prior current row stale and retain payload only as non-current history. Return `Stale`; re-entry is a new request. |
+  | `Stale` after one retry: input digests or context membership still differ | Return explicit `Stale` / cancelled diagnostic; wait for user action. |
+
+  **Atomic replacement transaction ordering:**
+
+  Every state transition that installs a new `current` analysis follows this
+  sequence (all filesystem reads and hash checks happen before the write
+  transaction opens):
+
+  1. Read each input file from disk into an in-memory snapshot exactly once.
+  2. Compute SHA-256 digests for every input snapshot.
+  3. After analysis computation completes, re-read every explicit input outside
+     SQLite and compare its digest and ordered membership to steps 1–2. A
+     `NotFound` is `MissingInput`; changed bytes/membership is `Stale`; other
+     read failures remain typed errors. On mismatch, discard without opening
+     a database write transaction.
+  4. Open a short SQLite write transaction (bounded; no filesystem/provider I/O inside).
+  5. Insert the new candidate row with `state = 'candidate'`.
+  6. Insert its `analysis_inputs`, `graph_nodes`, `graph_edges`, and
+     `diagnostics` rows.
+  7. No filesystem I/O occurs inside the transaction. The pre-transaction
+     validation is point-in-time; concurrent filesystem changes after it are
+     caught by the final revalidation in step 11 before presentation.
+  8. Update the previously `current` row: set `state = 'superseded'` and
+     `retired_at = now`.
+  9. Update the new candidate row: set `state = 'current'`.
+  10. Commit.  On commit failure, roll back and preserve the last accepted row.
+  11. Re-validate input digests and context membership one final time before
+      presenting the result to the user.
+
+  Steps 1–3 and 11 are outside the SQLite transaction. The transaction changes
+  only database state; it cannot lock out external filesystem writers. The
+  final revalidation before presentation preserves the documented point-in-time
+  freshness guarantee. The transaction is short because all filesystem reads
+  and provider work are complete before it opens.
+
+  **Preserving `project_files` on clear-cache:**
+
+  A "clear cache" operation (explicit user action) deletes:
+
+  - All rows in `file_dependencies`, `parser_snapshots`, `analyses`,
+    `analysis_inputs`, `graph_nodes`, `graph_edges`, `diagnostics`.
+  - Optionally drops and recreates the database file itself.
+
+  `project_files` rows are preserved.  The seen-file registry must survive a
+  clear-cache so that the next analysis of a previously opened file does not
+  require a re-enumeration of the project.  Clearing the database file removes
+  `project_files` implicitly; the registry is rebuilt lazily on next access.
+
+  **Privacy exclusions:**
+
+  No table ever stores:
+  - Raw source bytes (`project_files` records paths only).
+  - Original prompts sent to the provider.
+  - Raw provider responses.
+  - Credentials or tokens.
+  - API keys.
+
+  The following fields may contain source-derived text and are treated as
+  sensitive cache data:
+  - `graph_nodes.label`, `graph_edges.label`.
+  - `diagnostics.message`.
+  - The BLOB payload inside `parser_snapshots.minimal_facts_payload`.
+
+  These fields are excluded from ordinary logs, telemetry, and any export
+  path unless explicitly reviewed and approved.  The application logging layer
+  must redact them by default.
+
+  **Platform durability and concurrency deferrals:**
+
+  The following SQLite configuration decisions are explicitly deferred pending
+  Linux and Windows validation:
+
+  | Setting | Safe default kept | Evidence gate required |
+  |---|---|---|
+  | `journal_mode` | SQLite default (WAL not selected) | Confirm no corruption on Windows exclusive-file access and no unbounded WAL growth on Linux under stress before choosing a mode. |
+  | `synchronous` | SQLite default (NORMAL not selected) | Benchmark and confirm durability on abnormal process termination on both platforms before choosing a level. |
+  | `busy_timeout` | 5000 ms | Confirm adequate on Windows file-sharing scenarios. |
+  | Multi-writer recovery UX | Single-writer assumed | Validate that WAL mode permits one writer and N readers safely; design recovery UI only after evidence. |
+
+  No WAL or synchronous override is specified by this proposal. The existing
+  connection behavior remains in force until platform tests justify a documented
+  change; do not interpret deferred options as already configured.
+
+  **Remaining uncertainty (marked, not silently resolved):**
+
+  - Context-set digest storage must be defined by the implementation using the
+    existing canonical analysis fingerprint encoding and ordered input identity.
+  - BLOB envelope header: `u8` stores version as a single byte (0–255). The
+    MVP uses version 1, mirrored by text identifier `"1"` in `facts_schema_version`.
+    Widen the header before introducing a version outside that byte range; its
+    endianness is irrelevant.
+  - Maximum payload BLOB size: no hard cap is defined; set one during implementation
+    based on language-adapter fixture sizes.
+  - `busy_timeout` upper bound: 5000 ms is a conservative starting point; platform
+    tests may show a different value is needed.
+  - WAL checkpoint policy: no automatic checkpoint is assumed; future evidence may
+    require a bounded checkpoint trigger.
+  - Concurrency: the MVP assumes a single writer; multi-session/multi-window
+    writer safety is not in scope and requires separate validation.
+
+  **Transactions and migrations summary:**
+
+  - `PRAGMA user_version` is the single ordered schema-version marker; it advances
+    only after each migration commits successfully.
+  - All foreign keys are enforced (`PRAGMA foreign_keys = ON`) on every connection.
+  - Migrations are repeat-safe at the transaction boundary.
+  - On migration error: roll back, report the database version and error, do not
+    touch source files, and offer a user-confirmed derived-cache rebuild.
+  - Parser/IR schema changes invalidate incompatible snapshots for lazy rebuild;
+    no coercion of old payloads into new meaning.
+  - Node/edge IDs are scoped to an analysis snapshot; stable cross-edit identities
+    are not promised.
+
+  **Implementation guidance:**
+  `rusqlite` with `bundled` feature, relational node/edge tables, recursive CTEs
+  for bounded file-dependency traversal.  Hash algorithm, exact configuration
+  serialization, bounded retry/cancellation policy, dependency extraction
+  completeness, migration runner, and durability settings require implementation
+  tests before they are treated as fixed.
 - **Visualization adapters:** Render only validated IR as native interactive graph elements; never treat generated images or UI widgets as canonical analysis data.
 - **Diagnostics and observability:** Typed errors at subsystem boundaries, user-actionable diagnostics, and structured logs through a centralized logging setup.
 
