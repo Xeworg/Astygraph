@@ -25,7 +25,7 @@ Snapshot creation and fingerprint composition exist, but neither currently compa
 1. [ ] Add path-safe revalidation helpers for parse and analysis fingerprints; re-read only supplied inputs, rebuild current digests/fingerprints, and compare to recorded fingerprints.
 2. [ ] Add integration tests for fresh unchanged inputs; changed/missing root; changed/missing context; context reorder/add/remove; verify mismatch blocks freshness and no source bytes are persisted.
 3. [ ] Independently verify behavior and all required checks; record platform limits and evidence.
-4. [ ] Commit the work unit and record commit identity.
+4. [x] Commit the work unit as `a2f4981`; record the implementation commit identity.
 
 ## Acceptance
 - Unchanged exact bytes, versions/settings, and ordered input membership return Fresh.
@@ -48,8 +48,13 @@ Snapshot creation and fingerprint composition exist, but neither currently compa
 - `cargo clippy --lib --no-deps -- -D warnings` — passed.
 - `cargo clippy --test persistence_freshness --no-deps -- -D warnings` — passed.
 - `git diff --check` — passed.
-- Independent verifier confirmed unsafe-path rejection before freshness, NotFound distinction, no DB/provider/app integration, and coverage of fingerprint dimensions. Linux only; Windows not run. Unix-only permission/symlink tests are cfg-gated.
-- [ ] Future verification: run the required test suite in the Windows VM when it becomes available; Windows filesystem and symlink behavior remain unverified.
+- Independent Linux verifier confirmed unsafe-path rejection before freshness, NotFound distinction, no DB/provider/app integration, and fingerprint-dimension coverage. Linux: focused freshness 30 passed; workspace 318 passed; fmt, lib clippy, focused-test clippy, and diff-check passed.
+- Windows VM: `cargo test --workspace --all-targets` — 298 passed, 0 failed. Unix-only symlink/permission tests are cfg-gated and were not run on Windows. Windows fmt/clippy were not reported.
+- [x] Windows VM verification completed: `cargo test --workspace --all-targets` — 298 passed, 0 failed. Unix-only symlink/permission cases were cfg-gated and therefore not run on Windows.
+
+## Commits
+- Implementation: `a2f4981 feat: revalidate snapshot freshness`.
+- Windows verification evidence: pending documentation close-out commit.
 
 ## Next step
-Close the verified implementation as a local work-unit commit; retain the Windows VM check as a future task.
+Continue with the next separately scoped persistence feature: design the parser/analysis payload schema. Do not add database payload persistence until that scope is explicitly planned.
