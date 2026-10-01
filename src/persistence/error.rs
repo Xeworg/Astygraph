@@ -33,9 +33,10 @@ impl std::error::Error for FutureSchemaVersion {}
 
 /// Typed errors that may escape the persistence module.
 ///
-/// Variants cover the three distinct failure domains required by the MVP
-/// foundation: SQLite database errors, filesystem I/O errors, and cache-
-/// directory resolution failures.  Internal SQLite details are not re-exported.
+/// Variants cover the four distinct failure domains required by the MVP
+/// foundation: SQLite database errors, filesystem I/O errors, cache-
+/// directory resolution failures, and source-snapshot read failures.
+/// Internal SQLite details are not re-exported.
 #[derive(Debug)]
 pub enum Error {
     /// A SQLite operation failed.  The inner error is boxed to keep
@@ -48,6 +49,13 @@ pub enum Error {
     /// The database schema version is newer than the binary supports.
     /// This prevents silent corruption when a newer astynex created the DB.
     FutureSchemaVersion(FutureSchemaVersion),
+    /// A source file could not be read for snapshotting.
+    SnapshotRead {
+        /// Display form of the path that failed.
+        path: String,
+        /// The underlying I/O error.
+        source: Box<std::io::Error>,
+    },
 }
 
 // ─── conversions ──────────────────────────────────────────────────────────────
@@ -82,6 +90,9 @@ impl Display for Error {
             Error::Io(err) => write!(f, "I/O error: {err}"),
             Error::CacheDir(msg) => write!(f, "cache directory error: {msg}"),
             Error::FutureSchemaVersion(msg) => write!(f, "{msg}"),
+            Error::SnapshotRead { path, source } => {
+                write!(f, "failed to read source file '{}': {source}", path)
+            }
         }
     }
 }
@@ -95,6 +106,9 @@ impl StdError for Error {
             Error::Io(err) => Some(err as &(dyn StdError + 'static)),
             Error::CacheDir(_) => None,
             Error::FutureSchemaVersion(err) => Some(err as &(dyn StdError + 'static)),
+            Error::SnapshotRead { source, .. } => {
+                Some(source.as_ref() as &(dyn StdError + 'static))
+            }
         }
     }
 }
@@ -106,5 +120,14 @@ impl Error {
     #[track_caller]
     pub fn cache_dir(msg: impl Into<String>) -> Self {
         Error::CacheDir(msg.into())
+    }
+
+    /// Constructs a `SnapshotRead` error for a failed file read.
+    #[track_caller]
+    pub fn snapshot_read_failure(path: &std::path::Path, source: std::io::Error) -> Self {
+        Error::SnapshotRead {
+            path: path.display().to_string(),
+            source: Box::new(source),
+        }
     }
 }

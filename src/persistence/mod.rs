@@ -39,6 +39,11 @@ pub mod open;
 pub mod paths;
 /// Ordered migration framework via `PRAGMA user_version`.
 mod schema;
+/// Source snapshot and SHA-256 digest primitives.
+///
+/// Provides in-memory file snapshots for the freshness protocol.
+/// Source bytes are read once and hashed; they are never written to SQLite.
+pub mod snapshot;
 
 // Re-export the two primary public entry points at crate level so callers
 // can use `persistence::cache_db_path` and `persistence::open_cache_db`.
