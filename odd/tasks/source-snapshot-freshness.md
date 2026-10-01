@@ -26,7 +26,8 @@ Project files can change during analysis. Persistent derived results must not be
    - Added tests for repeated million-byte vector, identical/different bytes, file round-trip, binary bytes, and missing/unreadable paths. Unix-only permission APIs are cfg-gated; Windows test handling is platform-guarded.
    - TDD RED: known-vector and round-trip tests failed because expected digest was incorrectly the empty-input digest.
    - GREEN: `cargo test --workspace --all-targets` — 205 passed, 0 failed; `cargo fmt --check`, `cargo clippy --lib --no-deps -- -D warnings`, and `git diff --check` passed.
-   - Work-unit commit: pending.
+   - Independent verification: 205 tests passed; formatting, clippy, and diff checks passed. Native review closed approved; non-blocking suggestions recorded, and one critical suggestion was refuted by the provider refuter.
+   - Work-unit commit: `77ba039 feat: add SHA-256 source snapshots`.
 2. [ ] Add parse and analysis fingerprint composition with stable ordered context set, path validation, and freshness comparison tests.
 3. [ ] Independently verify, run checks, record evidence and work-unit commits.
 
