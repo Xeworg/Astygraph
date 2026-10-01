@@ -24,7 +24,7 @@ Implement the approved proposed SQLite payload schema as the initial v1 migratio
 1. [x] Map existing migration framework, schema design, and foundation tests.
 2. [x] Implement migration v1 and focused migration coverage test-first.
 3. [x] Independently verify all required checks and schema integrity.
-4. [ ] Commit implementation work unit and record identity.
+4. [x] Commit implementation work unit and record identity.
 
 ## Acceptance
 - Fresh DB is at `user_version = 1` with all eight tables and specified indexes.
@@ -43,6 +43,7 @@ Implement the approved proposed SQLite payload schema as the initial v1 migratio
 - Independent verifier confirmed 8 tables, 9 indexes, FK/cascade/composite-key constraints, migration rollback/idempotence/future-version behavior, privacy exclusions, and no WAL/synchronous override.
 - Linux only for this migration; Windows validation is pending. Existing user-reported Windows suite predates the new migration.
 - Native targeted validator could not run because no model is configured for `review-validator`. The one-line fixture correction was independently covered by the full rerun, but native review remains unclosed.
+- Implementation commit: `2cbd4fc87d9ab4acc049a29e6808e9a442e1fa37` (`feat: add persistence payload schema v1`).
 
 ## Next
-Commit implementation work unit locally; do not push without a separate user request.
+Implementation work unit committed locally; no push requested. Windows validation and native targeted review remain pending.
