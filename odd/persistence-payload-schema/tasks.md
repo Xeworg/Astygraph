@@ -6,7 +6,7 @@ Source of truth: `odd/tasks/persistence-payload-schema.md`
 1. [x] Map current PRD, persistence APIs, and existing privacy/freshness contracts.
 2. [x] Draft concrete schema, constraints, indexes, state transitions, and transaction/clear semantics in PRD §9.
 3. [ ] Independently verify consistency and implementation boundaries; revise per findings.
-4. [ ] Commit docs work unit and record identity.
+4. [x] Design commit `8f23491 docs: define persistence payload schema`; identity record follows.
 
 ## Human-selected design constraints
 - Versioned opaque parser-fact BLOB; explicit schema version; per-language shape deferred.

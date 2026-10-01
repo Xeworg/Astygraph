@@ -25,7 +25,7 @@ Turn the conceptual persistence model in PRD §9 into a reviewable, concrete SQL
 1. [x] Map current PRD, persistence APIs, and existing privacy/freshness contracts.
 2. [x] Specify concrete table schema, constraints, indexes, state transitions, and transaction/clear semantics in PRD §9.
 3. [ ] Independently verify internal consistency and implementation boundaries; revise based on findings.
-4. [ ] Commit the docs work unit and record commit identity.
+4. [x] Docs design committed as `8f23491 docs: define persistence payload schema`; evidence-record commit follows.
 
 ## Acceptance
 - Every conceptual table has columns/types/nullability/keys/FKs and explicit delete behavior.
@@ -62,5 +62,9 @@ Turn the conceptual persistence model in PRD §9 into a reviewable, concrete SQL
 - No Rust tests run: this is docs-only and no migration/schema code changed.
 - Platform durability/concurrency choices remain deferred; this is a proposed schema, not the current runtime schema (current `user_version` remains 0).
 
+## Commits
+- Design: `8f23491 docs: define persistence payload schema`.
+- Commit identity record: pending.
+
 ## Next step
-Commit the docs work unit and record its identity. The next implementation must be separately scoped and authorized; this design does not authorize migration implementation.
+The next implementation must be separately scoped and authorized; this design does not authorize migration implementation.
