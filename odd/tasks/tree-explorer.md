@@ -24,4 +24,4 @@ Replace the current one-directory-at-a-time browser with a familiar expandable p
 - Tests: `cargo test --workspace --all-targets` — 165 passed, 0 failed.
 - `cargo fmt --check` and `git diff --check` passed.
 - Independent verification completed; GUI smoke test not run.
-- Commit: pending.
+- Commit: `5109d4e feat: add lazy expandable project tree`.

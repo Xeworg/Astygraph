@@ -44,4 +44,4 @@ Implement a lazily-loaded tree cache with a global 50,000-entry budget for the f
 - `cargo fmt --check`: passed
 - `git diff --check`: passed
 - Independent verifier confirmed state/cache acceptance; GUI smoke test was not run.
-- Work-unit commit: pending
+- Work-unit commit: `5109d4e feat: add lazy expandable project tree`.
