@@ -18,6 +18,13 @@
 mod fs_lazy {
     use astynex::app_state::{AppState, FolderState};
     use astynex::fs::tree::TreeCache;
+    use std::path::{Path, PathBuf};
+
+    /// Match the canonical root stored by `AppState` on platforms where
+    /// canonical paths differ from the path returned by `TempDir::path()`.
+    fn canonical_tmp_path(path: &Path) -> PathBuf {
+        std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+    }
 
     // ========================================================================
     // TreeCache unit tests
@@ -287,7 +294,11 @@ mod fs_lazy {
         };
 
         assert_eq!(before, after, "expand_dir must NOT change current_dir");
-        assert_eq!(after, tmp.path(), "current_dir should remain at root");
+        assert_eq!(
+            after,
+            &canonical_tmp_path(tmp.path()),
+            "current_dir should remain at root"
+        );
     }
 
     /// REQ-1: expand_dir does NOT change entries.
@@ -587,7 +598,7 @@ mod fs_lazy {
         let FolderState::Loaded { current_dir, .. } = &state.folder_state else {
             panic!("expected Loaded");
         };
-        assert_eq!(current_dir, tmp.path());
+        assert_eq!(current_dir, &canonical_tmp_path(tmp.path()));
     }
 
     /// REQ-4: Symlinks cannot be expanded.
@@ -613,7 +624,7 @@ mod fs_lazy {
         let FolderState::Loaded { current_dir, .. } = &state.folder_state else {
             panic!("expected Loaded");
         };
-        assert_eq!(current_dir, tmp.path());
+        assert_eq!(current_dir, &canonical_tmp_path(tmp.path()));
     }
 
     /// REQ-5: Global budget bounds total cached entries (AppState).
@@ -735,7 +746,7 @@ mod fs_lazy {
         let FolderState::Loaded { entries, root, .. } = &state.folder_state else {
             panic!("expected Loaded after replacement");
         };
-        assert_eq!(root, tmp2.path());
+        assert_eq!(root, &canonical_tmp_path(tmp2.path()));
 
         let names: Vec<_> = entries
             .iter()
