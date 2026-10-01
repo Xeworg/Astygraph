@@ -7,6 +7,30 @@
 use std::error::Error as StdError;
 use std::fmt::{self, Display};
 
+/// Error returned when the database schema version is newer than the code
+/// supports.  This prevents silent corruption from trying to run
+/// forward-migrations on a database created by a newer binary.
+#[derive(Debug)]
+pub struct FutureSchemaVersion {
+    /// The version stored in the database.
+    pub found: i32,
+    /// The maximum version this binary supports.
+    pub supported: i32,
+}
+
+impl std::fmt::Display for FutureSchemaVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "schema version {} is newer than this binary supports ({}); \
+             the database was created by a newer version of astynex",
+            self.found, self.supported
+        )
+    }
+}
+
+impl std::error::Error for FutureSchemaVersion {}
+
 /// Typed errors that may escape the persistence module.
 ///
 /// Variants cover the three distinct failure domains required by the MVP
@@ -21,6 +45,9 @@ pub enum Error {
     Io(std::io::Error),
     /// The project cache directory could not be created or resolved.
     CacheDir(String),
+    /// The database schema version is newer than the binary supports.
+    /// This prevents silent corruption when a newer astynex created the DB.
+    FutureSchemaVersion(FutureSchemaVersion),
 }
 
 // ─── conversions ──────────────────────────────────────────────────────────────
@@ -39,6 +66,13 @@ impl From<std::io::Error> for Error {
     }
 }
 
+/// Converts a `FutureSchemaVersion` into a typed `Error::FutureSchemaVersion`.
+impl From<FutureSchemaVersion> for Error {
+    fn from(err: FutureSchemaVersion) -> Self {
+        Error::FutureSchemaVersion(err)
+    }
+}
+
 // ─── Display ──────────────────────────────────────────────────────────────────
 
 impl Display for Error {
@@ -47,6 +81,7 @@ impl Display for Error {
             Error::Rusqlite(err) => write!(f, "database error: {err}"),
             Error::Io(err) => write!(f, "I/O error: {err}"),
             Error::CacheDir(msg) => write!(f, "cache directory error: {msg}"),
+            Error::FutureSchemaVersion(msg) => write!(f, "{msg}"),
         }
     }
 }
@@ -59,6 +94,7 @@ impl StdError for Error {
             Error::Rusqlite(err) => Some(err.as_ref() as &(dyn StdError + 'static)),
             Error::Io(err) => Some(err as &(dyn StdError + 'static)),
             Error::CacheDir(_) => None,
+            Error::FutureSchemaVersion(err) => Some(err as &(dyn StdError + 'static)),
         }
     }
 }

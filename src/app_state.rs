@@ -551,7 +551,7 @@ impl AppState {
     /// - current=/root/src, target=/root/src/lib → YES (src is expanded and under current)
     /// - But NOT sibling navigation: current=/root/src, target=/root/lib → NO
     ///   (lib is not under src)
-    fn is_descendant_of_expanded(&self, target: &PathBuf, current: &PathBuf) -> bool {
+    fn is_descendant_of_expanded(&self, target: &Path, current: &Path) -> bool {
         // Walk up from target, checking each ancestor
         let mut ancestor = target.parent();
         while let Some(parent) = ancestor {

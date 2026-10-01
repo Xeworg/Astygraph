@@ -28,7 +28,11 @@ The approved cache design needs a reliable storage lifecycle before concrete par
    - Surface: `Cargo.toml`, `Cargo.lock`, `src/lib.rs`, `src/persistence/{mod.rs,error.rs}`, `tests/persistence_errors.rs`.
    - Windows execution not available in this session.
    - Work-unit commit: `0c9fc35 feat: add SQLite persistence error foundation`.
-2. [ ] Implement project cache path/bootstrap, open lifecycle, connection pragmas, and atomic versioned migration framework; test fresh/reopen/foreign-key/error/rollback behavior.
+2. [x] Implement project cache path/bootstrap, open lifecycle, connection pragmas, and atomic versioned migration framework; test fresh/reopen/foreign-key/error/rollback behavior.
+   - `cache_db_path` lazily creates `<project>/.astynex/cache.db`; `open_cache_db` configures foreign keys and a 5-second bounded busy timeout; schema version is 0 with no payload tables.
+   - Migration framework uses only `PRAGMA user_version`; private unit-test injection verifies failing DDL and version changes both roll back. Future schema versions are rejected clearly.
+   - Integration tests cover fresh/reopen, path failures, FK enforcement, bounded timeout, absence of payload tables, and future schema handling.
+   - Work-unit commit: pending.
 3. [ ] Independently verify the implementation, run configured tests/checks, record commits and platform limitations.
 
 ## Acceptance
@@ -42,8 +46,8 @@ The approved cache design needs a reliable storage lifecycle before concrete par
 ## Progress
 - [x] Read-only implementation mapping completed; no existing persistence module or rusqlite dependency exists; `.astynex/` already excluded from scanner.
 - [x] Task 1 — complete; writer-reported TDD checks passed.
-- [ ] Task 2 — in progress.
-- [ ] Task 3 — pending.
+- [x] Task 2 — implementation complete; independent verification checks passed.
+- [ ] Task 3 — in progress.
 
 ## Next step
-Implement task 2 test-first: path creation, connection setup, and migration behavior. Preserve PRD boundaries; do not add cache payload tables yet.
+Finish Task 3 closeout: record verification evidence and commits, then plan the next persistence slice without adding schema payload tables prematurely.
