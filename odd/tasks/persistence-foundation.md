@@ -27,7 +27,7 @@ The approved cache design needs a reliable storage lifecycle before concrete par
    - GREEN: same runner passed, 164 tests total including 6 persistence error tests; `cargo fmt --check` and `git diff --check` passed.
    - Surface: `Cargo.toml`, `Cargo.lock`, `src/lib.rs`, `src/persistence/{mod.rs,error.rs}`, `tests/persistence_errors.rs`.
    - Windows execution not available in this session.
-   - Work-unit commit: pending.
+   - Work-unit commit: `0c9fc35 feat: add SQLite persistence error foundation`.
 2. [ ] Implement project cache path/bootstrap, open lifecycle, connection pragmas, and atomic versioned migration framework; test fresh/reopen/foreign-key/error/rollback behavior.
 3. [ ] Independently verify the implementation, run configured tests/checks, record commits and platform limitations.
 
