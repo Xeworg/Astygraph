@@ -1,10 +1,10 @@
 //! Integration tests for the persistence foundation.
 //!
 //! Covers: cache path resolution, SQLite lifecycle, connection settings,
-//! migration atomicity, and version tracking — no payload tables yet.
+//! migration atomicity, and version tracking for schema v1.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
 /// Constructs a fresh temporary project directory (no .astynex/ exists).
@@ -13,12 +13,12 @@ fn fresh_project_dir() -> TempDir {
 }
 
 /// Returns the cache DB path for a project directory.
-fn cache_db_path(project_dir: &PathBuf) -> PathBuf {
+fn cache_db_path(project_dir: &Path) -> PathBuf {
     astynex::persistence::cache_db_path(project_dir).expect("cache_db_path must not panic")
 }
 
 /// Opens (creating if absent) the cache DB for a project dir.
-fn open_cache(project_dir: &PathBuf) -> Result<rusqlite::Connection, astynex::persistence::Error> {
+fn open_cache(project_dir: &Path) -> Result<rusqlite::Connection, astynex::persistence::Error> {
     astynex::persistence::open_cache_db(project_dir)
 }
 
@@ -78,9 +78,9 @@ fn parent_path_error() {
 
 // ─── open_cache_db — fresh / idempotent ───────────────────────────────────────
 
-/// Opening a fresh project creates the DB with schema version 0.
+/// Opening a fresh project creates the DB at schema version 1.
 #[test]
-fn fresh_database_has_version_zero() {
+fn fresh_database_has_version_one() {
     let tmp = fresh_project_dir();
     let project = tmp.path().to_path_buf();
 
@@ -88,14 +88,14 @@ fn fresh_database_has_version_zero() {
 
     assert_eq!(
         read_user_version(&conn),
-        0,
-        "fresh DB must have user_version = 0"
+        1,
+        "fresh DB must have user_version = 1"
     );
 }
 
-/// Opening the same project twice is idempotent; version stays 0.
+/// Opening the same project twice is idempotent; version stays 1.
 #[test]
-fn reopen_idempotent_version_stays_zero() {
+fn reopen_idempotent_version_stays_one() {
     let tmp = fresh_project_dir();
     let project = tmp.path().to_path_buf();
 
@@ -107,8 +107,8 @@ fn reopen_idempotent_version_stays_zero() {
     let conn2 = open_cache(&project).expect("second open must succeed");
     let v2 = read_user_version(&conn2);
 
-    assert_eq!(v1, 0, "version after first open must be 0");
-    assert_eq!(v2, 0, "version after second open must be 0");
+    assert_eq!(v1, 1, "version after first open must be 1");
+    assert_eq!(v2, 1, "version after second open must be 1");
 }
 
 /// Reopening does not create additional .astynex directories.
@@ -177,16 +177,16 @@ fn busy_timeout_is_bounded() {
 
 // ─── migration atomicity ──────────────────────────────────────────────────────
 
-/// Schema version 0 has no payload tables in production.
+/// Schema version 1 has eight payload tables as defined in PRD §9.
 #[test]
-fn schema_version_zero_has_no_payload_tables() {
+fn schema_version_one_has_payload_tables() {
     let tmp = fresh_project_dir();
     let project = tmp.path().to_path_buf();
 
     let conn = open_cache(&project).expect("open_cache_db must succeed");
 
     let version = read_user_version(&conn);
-    assert_eq!(version, 0, "fresh DB schema version must be 0");
+    assert_eq!(version, 1, "fresh DB schema version must be 1");
 
     // The DB must be readable — query the sqlite_master table.
     let mut stmt = conn
@@ -198,15 +198,16 @@ fn schema_version_zero_has_no_payload_tables() {
         .filter_map(|r| r.ok())
         .collect();
 
-    // Version 0 must have no Astynex payload tables.
+    // Version 1 must have exactly the eight payload tables.
     let payload_tables: Vec<String> = tables
         .into_iter()
         .filter(|t| !t.starts_with("sqlite_"))
         .collect();
 
-    assert!(
-        payload_tables.is_empty(),
-        "schema version 0 must have no payload tables, found: {payload_tables:?}"
+    assert_eq!(
+        payload_tables.len(),
+        8,
+        "schema version 1 must have 8 payload tables, found: {payload_tables:?}"
     );
 }
 
@@ -227,7 +228,7 @@ fn future_schema_version_fails_clearly() {
     let result = astynex::persistence::open_cache_db(&project);
     assert!(
         matches!(result, Err(astynex::persistence::Error::FutureSchemaVersion(ref fsv))
-            if fsv.found == 99 && fsv.supported == 0),
+            if fsv.found == 99 && fsv.supported == 1),
         "future version must return FutureSchemaVersion error, got: {result:?}"
     );
 }

@@ -4,18 +4,24 @@
 //! Each migration is atomic: `user_version` is updated only after success;
 //! on error the transaction is rolled back and the version stays unchanged.
 //!
-//! Current schema version: **0** (no payload tables).
+//! Current schema version: **1** (eight payload tables from PRD §9).
 
 use crate::persistence::error::FutureSchemaVersion;
 use crate::persistence::Error;
 use rusqlite::{Connection, Transaction};
 
+/// Embed the v1 migration SQL as a static string.
+///
+/// The file contains the complete DDL for the eight payload tables, nine indexes,
+/// CHECK constraint, composite FKs, and UNIQUE constraints from PRD §9.
+/// One atomic step: user_version 0 → 1.
+const MIGRATION_V1: &str = include_str!("migrations/v1.sql");
+
 /// Current schema version.
 ///
-/// Version 0 represents the initial empty foundation: SQLite is initialized
-/// with integrity pragmas but no Astynex tables exist yet.  Payload tables
-/// will be added in later migrations under versioned schema upgrades.
-pub const CURRENT_SCHEMA_VERSION: i32 = 0;
+/// Version 1 is the initial payload schema: eight tables for the analysis graph
+/// and cache layer from PRD §9.
+pub const CURRENT_SCHEMA_VERSION: i32 = 1;
 
 /// A single migration step: target schema version and the SQL to apply.
 ///
@@ -29,6 +35,14 @@ struct MigrationStep {
     /// SQL statements to execute. May be empty for a no-op version bump.
     pub sql: &'static str,
 }
+
+/// All migration steps ordered by target version.
+///
+/// **Not public API.** Used only by `run_migrations`.
+const MIGRATION_STEPS: [MigrationStep; 1] = [MigrationStep {
+    target_version: 1,
+    sql: MIGRATION_V1,
+}];
 
 /// Reads the current `PRAGMA user_version` value from `conn`.
 fn current_version(conn: &Connection) -> Result<i32, Error> {
@@ -128,8 +142,13 @@ pub fn run_migrations(conn: &Connection) -> Result<(), Error> {
         }));
     }
 
-    let steps: [MigrationStep; 0] = [];
-    run_migrations_with_steps(conn, from, &steps)
+    let steps = MIGRATION_STEPS;
+    // Collect only steps whose target_version > from.
+    let pending: Vec<MigrationStep> = steps
+        .into_iter()
+        .filter(|s| s.target_version > from)
+        .collect();
+    run_migrations_with_steps(conn, from, &pending)
 }
 
 // ─── unit tests ───────────────────────────────────────────────────────────────
@@ -158,8 +177,10 @@ mod tests {
     #[test]
     fn run_migrations_is_noop_when_already_at_target() {
         let conn = mem_conn();
+        // An in-memory DB starts at user_version = 0; run_migrations
+        // applies the v1 step and lands at version 1.
         run_migrations(&conn).expect("run_migrations must not error at version 0");
-        assert_eq!(current_version(&conn).unwrap(), 0);
+        assert_eq!(current_version(&conn).unwrap(), 1);
     }
 
     #[test]
@@ -169,7 +190,7 @@ mod tests {
 
         let err = run_migrations(&conn).unwrap_err();
         assert!(
-            matches!(err, Error::FutureSchemaVersion(ref fsv) if fsv.found == 99 && fsv.supported == 0),
+            matches!(err, Error::FutureSchemaVersion(ref fsv) if fsv.found == 99 && fsv.supported == 1),
             "must reject future version, got: {err}"
         );
     }

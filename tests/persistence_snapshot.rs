@@ -266,11 +266,11 @@ fn smoke_snapshot_and_db_open() {
     // Open cache DB in project directory.
     let conn = open_cache_db(project.path()).expect("open_cache_db must succeed on fresh project");
 
-    // Assert DB user_version is 0.
+    // Assert DB user_version is 1.
     let user_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .expect("user_version pragma must be queryable");
-    assert_eq!(user_version, 0, "fresh DB schema version must be 0");
+    assert_eq!(user_version, 1, "fresh DB schema version must be 1");
 
     // Assert DB file does not contain the unique payload bytes.
     let db_path = project.path().join(".astynex").join("cache.db");
