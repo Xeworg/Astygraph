@@ -1704,7 +1704,7 @@ mod path_policy {
 
         #[cfg(not(unix))]
         {
-            let _ = real_file; // silence unused warning
+            let _ = _real_file; // silence unused warning
         }
     }
 
@@ -1774,6 +1774,7 @@ mod path_policy {
 
 // ─── non-UTF-8 path rejection tests ────────────────────────────────────────
 
+#[cfg(unix)]
 mod non_utf8_path {
     use super::*;
     use astynex::persistence::fingerprint::ParseFingerprint;
@@ -1835,6 +1836,7 @@ mod non_utf8_path {
 
 // ─── symlink parent component tests ────────────────────────────────────────
 
+#[cfg(unix)]
 mod symlink_parent_component {
     use super::*;
     use astynex::persistence::fingerprint::ParseFingerprint;
