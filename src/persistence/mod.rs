@@ -33,6 +33,12 @@ pub use error::Error;
 
 // ─── public API surface ───────────────────────────────────────────────────────
 
+/// Deterministic SHA-256 fingerprinting for parse snapshots and semantic
+/// analysis.
+///
+/// Provides fingerprint composition with separate parse and analysis domains,
+/// canonical binary encoding, and project-root-relative path normalization.
+pub mod fingerprint;
 /// SQLite open lifecycle and per-connection pragmas.
 pub mod open;
 /// Cache path resolution.

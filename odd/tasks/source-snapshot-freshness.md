@@ -28,8 +28,19 @@ Project files can change during analysis. Persistent derived results must not be
    - GREEN: `cargo test --workspace --all-targets` — 205 passed, 0 failed; `cargo fmt --check`, `cargo clippy --lib --no-deps -- -D warnings`, and `git diff --check` passed.
    - Independent verification: 205 tests passed; formatting, clippy, and diff checks passed. Native review closed approved; non-blocking suggestions recorded, and one critical suggestion was refuted by the provider refuter.
    - Work-unit commit: `77ba039 feat: add SHA-256 source snapshots`.
-2. [ ] Add parse and analysis fingerprint composition with stable ordered context set, path validation, and freshness comparison tests.
+2. [x] Compose parse and analysis fingerprints with stable ordered context set, path validation, and freshness comparison tests.
+   - Added `src/persistence/fingerprint.rs` with `ParseFingerprint`, `AnalysisFingerprint`, `AnalysisInput`, and `DigestBytes`; separate 0x01/0x02 domains and canonical 8-byte big-endian length-prefixed encoding.
+   - Parse identity includes normalized path, source digest, language, parser/grammar and facts-schema versions; provider/model are excluded by API and encoding.
+   - Analysis identity includes root path+digest+role, symbol query, ordered distinct context paths+digests+roles, IR schema, provider/model, prompt-template version, and deterministically sorted output-affecting config; absent config differs from explicit empty config.
+   - Path handling normalizes safe `.`/internal `..`, rejects root escapes, absolute Windows/POSIX context identities, symlink components, sibling-prefix escapes, directories, missing files, and non-UTF8 identities. Filesystem checks are point-in-time and not a security boundary.
+   - Initial independent audit identified false coverage and implementation gaps; corrected them, added regressions, and removed the vacuous parse/provider test. One bounded worker launch timed out without edits; a retry completed.
+   - Final independent verification: `cargo test --workspace --all-targets` — 279 passed, 0 failed; `cargo fmt --check`, `cargo clippy --lib --no-deps -- -D warnings`, `cargo clippy --test persistence_fingerprints --no-deps -- -D warnings`, and `git diff --check` all passed with no warnings. One ignored doc-test remains.
+   - Windows was unavailable. Windows drive/UNC/backslash string rejection tests ran on Linux; Windows filesystem/symlink behavior remains unexecuted.
+   - Native review outcome for this candidate is unknown (no consent/review closure); ASSESS was unassessable because the new files are untracked. Separate independent verification completed.
 3. [ ] Independently verify, run checks, record evidence and work-unit commits.
+   - Final independent verification: 279 passed, 0 failed; `cargo fmt --check`, lib clippy (`-D warnings`), fingerprint-test clippy (`-D warnings`), and `git diff --check` passed without warnings. One intentional ignored doc-test; Windows not run.
+   - Native consent declined for this candidate. ASSESS returned `unassessable` because selected new source/test files remain untracked; the separate verifier completed the required independent verification. No native review closure is claimed.
+   - Work-unit commit: pending.
 
 ## Acceptance
 - SHA-256 digest is computed over exact bytes used by the caller; identical bytes yield identical digests.
@@ -42,8 +53,8 @@ Project files can change during analysis. Persistent derived results must not be
 ## Progress
 - [x] Persistence foundation and cache contract read; `sha2 0.10.9` is available in local Cargo cache.
 - [x] Task 1 — complete; agent recovered, fixes applied, and all Linux checks passed.
-- [ ] Task 2 — pending authorization to continue.
-- [ ] Task 3 — pending.
+- [x] Task 2 — complete; independent audit findings corrected and final Linux verification passed (279 tests).
+- [ ] Task 3 — in progress; final verification complete, preparing the work-unit commit and recording its identity.
 
 ## Next step
-Next after user confirms continuation: compose separate parse and semantic-analysis fingerprints with normalized project-relative input identities and ordered context membership. Do not persist fingerprints yet.
+Task 2 verification is complete; close Task 3 by committing the implementation and recording the commit identity. Do not persist fingerprints yet.
