@@ -8,6 +8,13 @@
 //! - No-op guards from non-Loaded states.
 
 mod fs_navigation {
+    use std::path::{Path, PathBuf};
+
+    /// Match the canonical paths stored by `AppState` across platforms.
+    fn canonical_tmp_path(path: &Path) -> PathBuf {
+        std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+    }
+
     /// `on_folder_selected` initialises both `root` and `current_dir` to the same path.
     #[test]
     fn loaded_state_has_root_and_current_dir_equal_on_open() {
@@ -48,7 +55,7 @@ mod fs_navigation {
         let FolderState::Loaded { current_dir, .. } = &state.folder_state else {
             panic!("expected Loaded");
         };
-        assert_eq!(current_dir, tmp.path());
+        assert_eq!(current_dir, &canonical_tmp_path(tmp.path()));
 
         // Navigate into "src".
         let state = state.navigate_to_dir(&child);
@@ -61,7 +68,7 @@ mod fs_navigation {
         else {
             panic!("expected Loaded after navigate_to_dir");
         };
-        assert_eq!(current_dir, &child);
+        assert_eq!(current_dir, &canonical_tmp_path(&child));
         // "src" listing must contain main.rs.
         let names: Vec<_> = entries
             .iter()
@@ -127,7 +134,10 @@ mod fs_navigation {
         let FolderState::Loaded { current_dir, .. } = &state.folder_state else {
             panic!("expected Loaded after navigating to src");
         };
-        assert_eq!(current_dir.as_path(), tmp.path().join("src").as_path());
+        assert_eq!(
+            current_dir.as_path(),
+            canonical_tmp_path(&tmp.path().join("src")).as_path()
+        );
 
         // Try to navigate directly to "lib" (sibling of "src", not a child).
         let state = state.navigate_to_dir(&sibling);
@@ -141,7 +151,7 @@ mod fs_navigation {
         };
         assert_eq!(
             after.as_path(),
-            tmp.path().join("src").as_path(),
+            canonical_tmp_path(&tmp.path().join("src")).as_path(),
             "sibling navigation must be rejected"
         );
     }
@@ -167,7 +177,8 @@ mod fs_navigation {
             panic!("expected Loaded");
         };
         assert_eq!(
-            current_dir, &child,
+            current_dir,
+            &canonical_tmp_path(&child),
             "parent navigation via navigate_to_dir must be rejected"
         );
     }
@@ -211,7 +222,8 @@ mod fs_navigation {
 
         assert!(matches!(
             &state.folder_state,
-            FolderState::Loaded { current_dir, .. } if current_dir == &child
+            FolderState::Loaded { current_dir, .. }
+                if current_dir == &canonical_tmp_path(&child)
         ));
 
         let state = state.navigate_up();
@@ -219,7 +231,11 @@ mod fs_navigation {
         let FolderState::Loaded { current_dir, .. } = &state.folder_state else {
             panic!("expected Loaded after navigate_up");
         };
-        assert_eq!(current_dir, tmp.path(), "navigate_up must return to root");
+        assert_eq!(
+            current_dir,
+            &canonical_tmp_path(tmp.path()),
+            "navigate_up must return to root"
+        );
     }
 
     /// `navigate_up` from the root directory is a no-op.
@@ -289,7 +305,8 @@ mod fs_navigation {
 
         assert!(matches!(
             &state.folder_state,
-            FolderState::Loaded { current_dir, .. } if current_dir == &level2
+            FolderState::Loaded { current_dir, .. }
+                if current_dir == &canonical_tmp_path(&level2)
         ));
 
         let state = state.navigate_to_root();
@@ -300,8 +317,8 @@ mod fs_navigation {
         else {
             panic!("expected Loaded after navigate_to_root");
         };
-        assert_eq!(current_dir, tmp.path());
-        assert_eq!(root, tmp.path());
+        assert_eq!(current_dir, &canonical_tmp_path(tmp.path()));
+        assert_eq!(root, &canonical_tmp_path(tmp.path()));
     }
 
     /// `navigate_to_root` from the root is a no-op.
@@ -482,7 +499,11 @@ mod fs_navigation {
         let FolderState::Loaded { current_dir, .. } = &state.folder_state else {
             panic!("expected Loaded");
         };
-        assert_eq!(current_dir, tmp.path(), "symlink traversal must be blocked");
+        assert_eq!(
+            current_dir,
+            &canonical_tmp_path(tmp.path()),
+            "symlink traversal must be blocked"
+        );
     }
 
     /// Multiple levels of nesting work correctly.
@@ -509,7 +530,7 @@ mod fs_navigation {
         else {
             panic!("expected Loaded at level 1");
         };
-        assert_eq!(d1, &level1);
+        assert_eq!(d1, &canonical_tmp_path(&level1));
 
         let state = state.navigate_to_dir(&level2);
         let FolderState::Loaded {
@@ -518,7 +539,7 @@ mod fs_navigation {
         else {
             panic!("expected Loaded at level 2");
         };
-        assert_eq!(d2, &level2);
+        assert_eq!(d2, &canonical_tmp_path(&level2));
 
         let state = state.navigate_to_dir(&level3);
         let FolderState::Loaded {
@@ -529,7 +550,7 @@ mod fs_navigation {
         else {
             panic!("expected Loaded at level 3");
         };
-        assert_eq!(d3, &level3);
+        assert_eq!(d3, &canonical_tmp_path(&level3));
         let names: Vec<_> = entries
             .iter()
             .map(|e| e.path.file_name().unwrap().to_str().unwrap())
@@ -544,6 +565,6 @@ mod fs_navigation {
         else {
             panic!("expected Loaded at root");
         };
-        assert_eq!(dr, tmp.path());
+        assert_eq!(dr, &canonical_tmp_path(tmp.path()));
     }
 }
