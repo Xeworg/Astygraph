@@ -32,8 +32,11 @@ The approved cache design needs a reliable storage lifecycle before concrete par
    - `cache_db_path` lazily creates `<project>/.astynex/cache.db`; `open_cache_db` configures foreign keys and a 5-second bounded busy timeout; schema version is 0 with no payload tables.
    - Migration framework uses only `PRAGMA user_version`; private unit-test injection verifies failing DDL and version changes both roll back. Future schema versions are rejected clearly.
    - Integration tests cover fresh/reopen, path failures, FK enforcement, bounded timeout, absence of payload tables, and future schema handling.
-   - Work-unit commit: pending.
-3. [ ] Independently verify the implementation, run configured tests/checks, record commits and platform limitations.
+   - Independent verification initially caught one extra blank line and a pre-existing `clippy::ptr_arg` warning in `src/app_state.rs`; both were corrected, then every check passed.
+   - Final checks: `cargo test --workspace --all-targets` — 188 passed; `cargo fmt --check` — passed; `cargo clippy --lib --no-deps -- -D warnings` — passed; `git diff --check` — passed. Untracked added Rust files also passed no-index whitespace checks.
+   - Windows execution was unavailable; GUI tests are not applicable. Schema version remains 0 with no payload tables, so implementation-level migration failure was unit-tested with an injected private migration step.
+   - Work-unit commit: `c85e8e6 feat: open versioned project SQLite cache`.
+3. [x] Independently verify the implementation, run configured tests/checks, record commits and platform limitations.
 
 ## Acceptance
 - The library exposes a small `persistence` module with path/open/error APIs, not leaking SQLite into UI/graph layers.
@@ -47,7 +50,7 @@ The approved cache design needs a reliable storage lifecycle before concrete par
 - [x] Read-only implementation mapping completed; no existing persistence module or rusqlite dependency exists; `.astynex/` already excluded from scanner.
 - [x] Task 1 — complete; writer-reported TDD checks passed.
 - [x] Task 2 — implementation complete; independent verification checks passed.
-- [ ] Task 3 — in progress.
+- [x] Task 3 — complete; independent verification passed on Linux.
 
 ## Next step
-Finish Task 3 closeout: record verification evidence and commits, then plan the next persistence slice without adding schema payload tables prematurely.
+Foundation complete. Next persistence slice should implement content snapshot hashing and race-safe cache freshness before adding concrete parser/analysis payload schema.
