@@ -110,6 +110,18 @@ impl DigestBytes {
         Self(digest)
     }
 
+    /// Construct a `DigestBytes` from a pre-computed 32-byte digest.
+    ///
+    /// This is used by the freshness revalidation layer to convert a
+    /// `SourceDigest` (from the snapshot module) into the equivalent
+    /// `DigestBytes` so it can be used in `AnalysisInput` during fingerprint
+    /// recomputation.  Both types are canonical SHA-256 digests with identical
+    /// byte layout; the conversion is lossless.
+    #[inline]
+    pub fn from_bytes(digest: [u8; 32]) -> Self {
+        Self(digest)
+    }
+
     /// Return the raw 32-byte digest.
     #[inline]
     pub fn as_bytes(&self) -> [u8; 32] {

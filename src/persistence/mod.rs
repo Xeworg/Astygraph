@@ -39,6 +39,9 @@ pub use error::Error;
 /// Provides fingerprint composition with separate parse and analysis domains,
 /// canonical binary encoding, and project-root-relative path normalization.
 pub mod fingerprint;
+/// Headless freshness revalidation — point-in-time check that a previously
+/// recorded fingerprint still matches current file contents.
+pub mod freshness;
 /// SQLite open lifecycle and per-connection pragmas.
 pub mod open;
 /// Cache path resolution.
