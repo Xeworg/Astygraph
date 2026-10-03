@@ -469,10 +469,7 @@ impl AppState {
     /// - A descendant of an expanded cached parent (nested navigation)
     pub fn navigate_to_dir(&self, dir: &Path) -> Self {
         let FolderState::Loaded {
-            root,
-            current_dir,
-            selected_file: _,
-            ..
+            root, current_dir, ..
         } = &self.folder_state
         else {
             return self.clone();
@@ -576,10 +573,7 @@ impl AppState {
     /// Valid from `Loaded` only. If already at the root, returns `self`.
     pub fn navigate_up(&self) -> Self {
         let FolderState::Loaded {
-            root,
-            current_dir,
-            selected_file: _,
-            ..
+            root, current_dir, ..
         } = &self.folder_state
         else {
             return self.clone();
@@ -636,10 +630,7 @@ impl AppState {
     /// Valid from `Loaded` only. No-op from other states.
     pub fn navigate_to_root(&self) -> Self {
         let FolderState::Loaded {
-            root,
-            current_dir,
-            selected_file: _,
-            ..
+            root, current_dir, ..
         } = &self.folder_state
         else {
             return self.clone();
